@@ -4,7 +4,7 @@ Quick golang app that you can pipe urls to for it to make parallel GET requests.
 
 Given a file with a list of IDs in it, you could do something like:
 
-    cat id_list.txt | sed 's/./https:\/\/api.example.com\/resource\/&/' | ./ganda
+    cat id_list.txt | sed 's/\(.*\)/https:\/\/api.example.com\/resource\/\1/' | ./ganda
     
 and that will pipe a stream of urls into `ganda` in the format `https://api.example.com/resource/<ID>`.
 
