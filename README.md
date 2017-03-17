@@ -12,7 +12,7 @@ It will then save the results into subdirectories in the `/tmp/ganda` directory.
 
 # installing
 
-Compile with golang:  `go build`.  
+Compile with golang, use either `go get github.com/tednaleid/ganda` to install in your `$GOPATH` or clone the repo and `go build` to create the `ganda` binary and then copy it into your path.
 
 If you have docker installed, you can use `./build.sh` to download a golang container and compile it into a `ganda` binary usable on linux (but not OSX).
 
