@@ -60,7 +60,7 @@ Then you can just put it somewhere in your path to use it.
        
 # Example
 
-This command takes the first 10 words from the macOS dictionary file, then turns each of them into a [Wikipedia API](https://www.mediawiki.org/wiki/API:Main_page) url.
+This command takes the first 1000 words from the macOS dictionary file, then turns each of them into a [Wikipedia API](https://www.mediawiki.org/wiki/API:Main_page) url.
 
 Those urls are then piped into `ganda` and saved in a directory called `out` in the current directory.
 
