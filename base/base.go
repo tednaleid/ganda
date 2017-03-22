@@ -19,6 +19,7 @@ type Config struct {
 	WriteFiles             bool
 	BaseDirectory          string
 	RequestWorkers         int
+	SubdirLength           int
 	RequestMethod          string
 	ConnectTimeoutDuration time.Duration
 	UrlFilename            string

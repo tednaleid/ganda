@@ -18,7 +18,7 @@ func StartResponseWorkers(responses <-chan *http.Response, config base.Config) *
 	for i := 1; i <= config.RequestWorkers; i++ {
 		go func() {
 			if config.WriteFiles {
-				responseSavingWorker(responses, config.BaseDirectory)
+				responseSavingWorker(responses, config.BaseDirectory, config.SubdirLength)
 			} else {
 				responsePrintingWorker(responses)
 			}
@@ -29,12 +29,12 @@ func StartResponseWorkers(responses <-chan *http.Response, config base.Config) *
 	return &responseWaitGroup
 }
 
-func responseSavingWorker(responses <-chan *http.Response, baseDirectory string) {
+func responseSavingWorker(responses <-chan *http.Response, baseDirectory string, subdirLength int) {
 	specialCharactersRegexp := regexp.MustCompile("[^A-Za-z0-9]+")
 
 	responseWorker(responses, func(response *http.Response, body []byte) {
 		filename := specialCharactersRegexp.ReplaceAllString(response.Request.URL.String(), "-")
-		fullPath := saveBodyToFile(baseDirectory, filename, body)
+		fullPath := saveBodyToFile(baseDirectory, subdirLength, filename, body)
 		base.Logger.Println("Response: ", response.StatusCode, response.Request.URL, "->", fullPath)
 	})
 }
@@ -60,17 +60,30 @@ func responseWorker(responses <-chan *http.Response, responseBodyAction func(*ht
 
 }
 
-func saveBodyToFile(baseDirectory string, filename string, body []byte) string {
-	directory := directoryForFile(baseDirectory, filename)
+func saveBodyToFile(baseDirectory string, subdirLength int, filename string, body []byte) string {
+	directory := directoryForFile(baseDirectory, filename, subdirLength)
 	fullPath := directory + filename
 	err := ioutil.WriteFile(fullPath, body, 0644)
 	base.Check(err)
 	return fullPath
 }
 
-func directoryForFile(baseDirectory string, filename string) string {
-	md5val := md5.Sum([]byte(filename))
-	directory := fmt.Sprintf("%s/%x/", baseDirectory, md5val[0:1])
+func directoryForFile(baseDirectory string, filename string, subdirLength int) string {
+	var directory string
+	if subdirLength <= 0 {
+		directory = fmt.Sprintf("%s/", baseDirectory)
+	} else {
+		sliceEnd := 1
+
+		// don't create directories longer than 4 binary hex characters (4^16 = 65k directories)
+		if (subdirLength > 2) {
+			sliceEnd = 2
+		}
+
+		md5val := md5.Sum([]byte(filename))
+		directory = fmt.Sprintf("%s/%x/", baseDirectory, md5val[0:sliceEnd])
+	}
+
 	os.MkdirAll(directory, os.ModePerm)
 	return directory
 }

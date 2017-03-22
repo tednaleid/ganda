@@ -47,6 +47,12 @@ func main() {
 			Destination: &config.RequestWorkers,
 		},
 		cli.IntFlag{
+			Name:        "subdir-length, S",
+			Usage:       "length of hashed subdirectory name to put saved files when using -o; use 2 for > 5k urls, 4 for > 5M urls",
+			Value:       0,
+			Destination: &config.SubdirLength,
+		},
+		cli.IntFlag{
 			Name:  "connect-timeout",
 			Usage: "Number of seconds to wait for a connection to be established before timeout",
 			Value: 3,
