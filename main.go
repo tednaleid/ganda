@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"io/ioutil"
 )
 
 func main() {
@@ -22,7 +23,7 @@ func main() {
 	app.Usage = ""
 	app.UsageText = "ganda [options] [file of urls]  OR  <urls on stdout> | ganda [options]"
 	app.Description = "Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel"
-	app.Version = "0.0.2-BETA"
+	app.Version = "0.0.3-BETA"
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -57,10 +58,19 @@ func main() {
 			Usage: "Number of seconds to wait for a connection to be established before timeout",
 			Value: 3,
 		},
+		cli.BoolFlag{
+			Name: "silent, s",
+			Usage: "",
+			Destination: &config.Silent,
+		},
 	}
 
 	app.Before = func(c *cli.Context) error {
 		config.ConnectTimeoutDuration = time.Duration(c.Int("connect-timeout")) * time.Second
+
+		if (config.Silent) {
+			base.Logger.SetOutput(ioutil.Discard)
+		}
 
 		if len(c.String("output")) > 0 {
 			config.WriteFiles = true

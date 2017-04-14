@@ -17,6 +17,7 @@ type RequestHeader struct {
 
 type Config struct {
 	WriteFiles             bool
+	Silent                 bool
 	BaseDirectory          string
 	RequestWorkers         int
 	SubdirLength           int
