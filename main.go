@@ -8,10 +8,10 @@ import (
 	"github.com/tednaleid/ganda/responses"
 	"github.com/tednaleid/ganda/urls"
 	"github.com/urfave/cli"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
-	"io/ioutil"
 )
 
 func main() {
@@ -59,8 +59,8 @@ func main() {
 			Value: 3,
 		},
 		cli.BoolFlag{
-			Name: "silent, s",
-			Usage: "",
+			Name:        "silent, s",
+			Usage:       "",
 			Destination: &config.Silent,
 		},
 	}
@@ -68,7 +68,7 @@ func main() {
 	app.Before = func(c *cli.Context) error {
 		config.ConnectTimeoutDuration = time.Duration(c.Int("connect-timeout")) * time.Second
 
-		if (config.Silent) {
+		if config.Silent {
 			base.Logger.SetOutput(ioutil.Discard)
 		}
 
