@@ -1,21 +1,23 @@
 package main
 
 import (
-	"fmt"
-	"github.com/pkg/errors"
+	"bufio"
 	"github.com/tednaleid/ganda/base"
 	"github.com/tednaleid/ganda/requests"
 	"github.com/tednaleid/ganda/responses"
-	"github.com/tednaleid/ganda/urls"
 	"github.com/urfave/cli"
-	"io/ioutil"
 	"net/http"
 	"os"
-	"time"
 )
 
 func main() {
-	config := base.Config{}
+	app := createApp()
+	app.Run(os.Args)
+}
+
+func createApp() *cli.App {
+	settings := base.NewSettings()
+	var gandaContext *base.Context
 
 	app := cli.NewApp()
 	app.Author = "Ted Naleid"
@@ -23,97 +25,98 @@ func main() {
 	app.Usage = ""
 	app.UsageText = "ganda [options] [file of urls]  OR  <urls on stdout> | ganda [options]"
 	app.Description = "Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel"
-	app.Version = "0.0.3-BETA"
+	app.Version = "0.0.4"
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:        "output, o",
-			Usage:       "The output base directory to save downloaded files instead of stdout",
-			Destination: &config.BaseDirectory,
+			Usage:       "the output base directory to save downloaded files, if omitted will stream response bodies to stdout",
+			Destination: &settings.BaseDirectory,
 		},
 		cli.StringFlag{
 			Name:        "request, X",
-			Value:       "GET",
-			Usage:       "The HTTP request method to use",
-			Destination: &config.RequestMethod,
+			Value:       settings.RequestMethod,
+			Usage:       "HTTP request method to use",
+			Destination: &settings.RequestMethod,
 		},
 		cli.StringSliceFlag{
 			Name:  "header, H",
-			Usage: "Header to send along on every request, can be used multiple times",
+			Usage: "headers to send with every request, can be used multiple times (gzip and keep-alive are already there)",
 		},
 		cli.IntFlag{
 			Name:        "workers, W",
-			Usage:       "Number of concurrent workers that will be making requests",
-			Value:       30,
-			Destination: &config.RequestWorkers,
+			Usage:       "number of concurrent workers that will be making requests",
+			Value:       settings.RequestWorkers,
+			Destination: &settings.RequestWorkers,
 		},
 		cli.IntFlag{
 			Name:        "subdir-length, S",
 			Usage:       "length of hashed subdirectory name to put saved files when using -o; use 2 for > 5k urls, 4 for > 5M urls",
-			Value:       0,
-			Destination: &config.SubdirLength,
+			Value:       settings.SubdirLength,
+			Destination: &settings.SubdirLength,
 		},
 		cli.IntFlag{
-			Name:  "connect-timeout",
-			Usage: "Number of seconds to wait for a connection to be established before timeout",
-			Value: 3,
+			Name:        "connect-timeout",
+			Usage:       "number of seconds to wait for a connection to be established before timeout",
+			Value:       settings.ConnectTimeoutSeconds,
+			Destination: &settings.ConnectTimeoutSeconds,
 		},
 		cli.BoolFlag{
 			Name:        "silent, s",
-			Usage:       "",
-			Destination: &config.Silent,
+			Usage:       "if flag is present, omit showing response code for each url only output response bodies",
+			Destination: &settings.Silent,
 		},
+		// TODO should we add 429 to the things we retry with smarts about when to retry?
+		//cli.IntFlag{
+		//	Name:  "retry",
+		//	Usage: "Number of retries on transient errors (5XX status codes) to attempt",
+		//	Value: 0,
+		//},
 	}
 
 	app.Before = func(c *cli.Context) error {
-		config.ConnectTimeoutDuration = time.Duration(c.Int("connect-timeout")) * time.Second
-
-		if config.Silent {
-			base.Logger.SetOutput(ioutil.Discard)
-		}
-
-		if len(c.String("output")) > 0 {
-			config.WriteFiles = true
-		} else {
-			config.WriteFiles = false
-		}
-
-		config.RequestHeaders = append(config.RequestHeaders, base.RequestHeader{Key: "connection", Value: "keep-alive"})
-		for _, header := range c.StringSlice("header") {
-			config.RequestHeaders = append(config.RequestHeaders, base.StringToHeader(header))
-		}
+		var err error
 
 		if c.Args().Present() {
-			config.UrlFilename = c.Args().First()
-			if _, err := os.Stat(config.UrlFilename); os.IsNotExist(err) {
-				message := fmt.Sprintf("file does not exist: %s", config.UrlFilename)
-				return errors.New(message)
-			}
+			settings.UrlFilename = c.Args().First()
 		}
 
-		return nil
+		for _, header := range c.StringSlice("header") {
+			settings.RequestHeaders = append(settings.RequestHeaders, base.StringToHeader(header))
+		}
+
+		gandaContext, err = base.NewContext(settings)
+
+		return err
 	}
 
 	app.Action = func(c *cli.Context) error {
-		run(config)
+		run(gandaContext)
 		return nil
 	}
 
-	app.Run(os.Args)
+	return app
 }
 
-func run(config base.Config) {
+func run(context *base.Context) {
 	requestsChannel := make(chan string)
 	responsesChannel := make(chan *http.Response)
 
-	requestWaitGroup := requests.StartRequestWorkers(requestsChannel, responsesChannel, config)
-	responseWaitGroup := responses.StartResponseWorkers(responsesChannel, config)
+	requestWaitGroup := requests.StartRequestWorkers(requestsChannel, responsesChannel, context)
+	responseWaitGroup := responses.StartResponseWorkers(responsesChannel, context)
 
-	urls.ProcessUrls(requestsChannel, config.UrlFilename)
+	processUrls(requestsChannel, context.UrlScanner)
 
 	close(requestsChannel)
 	requestWaitGroup.Wait()
 
 	close(responsesChannel)
 	responseWaitGroup.Wait()
+}
+
+func processUrls(requests chan<- string, urlScanner *bufio.Scanner) {
+	for urlScanner.Scan() {
+		url := urlScanner.Text()
+		requests <- url
+	}
 }

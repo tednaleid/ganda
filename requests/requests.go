@@ -7,13 +7,13 @@ import (
 	"sync"
 )
 
-func StartRequestWorkers(requests <-chan string, responses chan<- *http.Response, config base.Config) *sync.WaitGroup {
+func StartRequestWorkers(requests <-chan string, responses chan<- *http.Response, context *base.Context) *sync.WaitGroup {
 	var requestWaitGroup sync.WaitGroup
-	requestWaitGroup.Add(config.RequestWorkers)
+	requestWaitGroup.Add(context.RequestWorkers)
 
-	for i := 1; i <= config.RequestWorkers; i++ {
+	for i := 1; i <= context.RequestWorkers; i++ {
 		go func() {
-			requestWorker(config, requests, responses)
+			requestWorker(context, requests, responses)
 			requestWaitGroup.Done()
 		}()
 	}
@@ -21,24 +21,24 @@ func StartRequestWorkers(requests <-chan string, responses chan<- *http.Response
 	return &requestWaitGroup
 }
 
-func requestWorker(config base.Config, requests <-chan string, responses chan<- *http.Response) {
-	client := httpClient(config)
+func requestWorker(context *base.Context, requests <-chan string, responses chan<- *http.Response) {
+	client := httpClient(context)
 	for url := range requests {
-		request := createRequest(url, config.RequestMethod, config.RequestHeaders)
+		request := createRequest(url, context.RequestMethod, context.RequestHeaders)
 
 		response, err := client.Do(request)
 
 		if err == nil {
 			responses <- response
 		} else {
-			base.Logger.Println(url, "Error:", err)
+			context.Logger.Println(url, "Error:", err)
 		}
 	}
 }
 
-func httpClient(config base.Config) *http.Client {
+func httpClient(context *base.Context) *http.Client {
 	return &http.Client{
-		Timeout: config.ConnectTimeoutDuration,
+		Timeout: context.ConnectTimeoutDuration,
 		Transport: &http.Transport{
 			MaxIdleConns:        500,
 			MaxIdleConnsPerHost: 50,

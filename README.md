@@ -24,39 +24,37 @@ to install in your `$GOPATH` or clone the repo and
     
 to create the `ganda` binary and then copy it somewhere into your path.
 
-If you have docker installed, you can use `./build.sh` to download a golang container and compile it into a `ganda` binary usable on linux (but not OSX).
-
-Then you can just put it somewhere in your path to use it.
-
 # Usage
 
-    ganda --help
-    NAME:
-       ganda
-    
-    USAGE:
-       ganda [options] [file of urls]  OR  <urls on stdout> | ganda [options]
-    
-    VERSION:
-       0.0.1
-    
-    DESCRIPTION:
-       Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel
-    
-    AUTHOR:
-       Ted Naleid <contact@naleid.com>
-    
-    COMMANDS:
-         help, h  Shows a list of commands or help for one command
-    
-    GLOBAL OPTIONS:
-       --output value, -o value   The output base directory to save downloaded files instead of stdout
-       --request value, -X value  The HTTP request method to use (default: "GET")
-       --header value, -H value   Header to send along on every request, can be used multiple times
-       --workers value, -W value  Number of concurrent workers that will be making requests (default: 30)
-       --connect-timeout value    Number of seconds to wait for a connection to be established before timeout (default: 3)
-       --help, -h                 show help
-       --version, -v              print the version
+    $ ganda --help
+      NAME:
+         ganda
+
+      USAGE:
+         ganda [options] [file of urls]  OR  <urls on stdout> | ganda [options]
+
+      VERSION:
+         0.0.4
+
+      DESCRIPTION:
+         Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel
+
+      AUTHOR:
+         Ted Naleid <contact@naleid.com>
+
+      COMMANDS:
+           help, h  Shows a list of commands or help for one command
+
+      GLOBAL OPTIONS:
+         --output value, -o value         the output base directory to save downloaded files, if omitted will stream response bodies to stdout
+         --request value, -X value        HTTP request method to use (default: "GET")
+         --header value, -H value         headers to send with every request, can be used multiple times (gzip and keep-alive are already there)
+         --workers value, -W value        number of concurrent workers that will be making requests (default: 30)
+         --subdir-length value, -S value  length of hashed subdirectory name to put saved files when using -o; use 2 for > 5k urls, 4 for > 5M urls (default: 0)
+         --connect-timeout value          number of seconds to wait for a connection to be established before timeout (default: 10)
+         --silent, -s                     if flag is present, omit showing response code for each url only output response bodies
+         --help, -h                       show help
+         --version, -v                    print the version
        
 # Example
 
@@ -66,8 +64,8 @@ Those urls are then piped into `ganda` and saved in a directory called `out` in 
 
 
     head -1000 /usr/share/dict/words |\
-    awk '{print "https://en.wikipedia.org/w/api.php?action=query&titles="$1"&prop=revisions&rvprop=content&format=json"}' |\
-    ganda -o out
+    awk '{printf "https://en.wikipedia.org/w/api.php?action=query&titles=%s&prop=revisions&rvprop=content&format=json\n", $1}' |\
+    ganda -o out --subdir-length 2
     
 Output (shows hte HTTP status code of 200 OK for each along with the resulting output file that each was saved at):
 

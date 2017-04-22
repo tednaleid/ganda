@@ -9,18 +9,19 @@ import (
 	"os"
 	"regexp"
 	"sync"
+	"log"
 )
 
-func StartResponseWorkers(responses <-chan *http.Response, config base.Config) *sync.WaitGroup {
+func StartResponseWorkers(responses <-chan *http.Response, context *base.Context) *sync.WaitGroup {
 	var responseWaitGroup sync.WaitGroup
-	responseWaitGroup.Add(config.RequestWorkers)
+	responseWaitGroup.Add(context.RequestWorkers)
 
-	for i := 1; i <= config.RequestWorkers; i++ {
+	for i := 1; i <= context.RequestWorkers; i++ {
 		go func() {
-			if config.WriteFiles {
-				responseSavingWorker(responses, config.BaseDirectory, config.SubdirLength)
+			if context.WriteFiles {
+				responseSavingWorker(responses, context)
 			} else {
-				responsePrintingWorker(responses)
+				responsePrintingWorker(responses, context)
 			}
 			responseWaitGroup.Done()
 		}()
@@ -29,30 +30,30 @@ func StartResponseWorkers(responses <-chan *http.Response, config base.Config) *
 	return &responseWaitGroup
 }
 
-func responseSavingWorker(responses <-chan *http.Response, baseDirectory string, subdirLength int) {
+func responseSavingWorker(responses <-chan *http.Response, context *base.Context) {
 	specialCharactersRegexp := regexp.MustCompile("[^A-Za-z0-9]+")
 
-	responseWorker(responses, func(response *http.Response, body []byte) {
+	responseWorker(responses, context.Logger, func(response *http.Response, body []byte) {
 		filename := specialCharactersRegexp.ReplaceAllString(response.Request.URL.String(), "-")
-		fullPath := saveBodyToFile(baseDirectory, subdirLength, filename, body)
-		base.Logger.Println("Response: ", response.StatusCode, response.Request.URL, "->", fullPath)
+		fullPath := saveBodyToFile(context.BaseDirectory, context.SubdirLength, filename, body)
+		context.Logger.Println("Response: ", response.StatusCode, response.Request.URL, "->", fullPath)
 	})
 }
 
-func responsePrintingWorker(responses <-chan *http.Response) {
-	responseWorker(responses, func(response *http.Response, body []byte) {
-		base.Logger.Println("Response: ", response.StatusCode, response.Request.URL)
-		base.Out.Printf("%s", body)
+func responsePrintingWorker(responses <-chan *http.Response, context *base.Context) {
+	responseWorker(responses, context.Logger, func(response *http.Response, body []byte) {
+		context.Logger.Println("Response: ", response.StatusCode, response.Request.URL)
+		context.Out.Printf("%s", body)
 	})
 }
 
-func responseWorker(responses <-chan *http.Response, responseBodyAction func(*http.Response, []byte)) {
+func responseWorker(responses <-chan *http.Response, logger *log.Logger, responseBodyAction func(*http.Response, []byte)) {
 	for response := range responses {
 		body, err := ioutil.ReadAll(response.Body)
 		response.Body.Close()
 
 		if err != nil {
-			base.Logger.Printf("%s Response error status (%d): %v\n", response.Request.URL, response.StatusCode, err)
+			logger.Printf("%s Response error status (%d): %v\n", response.Request.URL, response.StatusCode, err)
 		} else {
 			responseBodyAction(response, body)
 		}
