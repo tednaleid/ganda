@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"github.com/tednaleid/ganda/base"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
 	"sync"
-	"log"
 )
 
 func StartResponseWorkers(responses <-chan *http.Response, context *base.Context) *sync.WaitGroup {
@@ -42,7 +42,7 @@ func responseSavingWorker(responses <-chan *http.Response, context *base.Context
 
 func responsePrintingWorker(responses <-chan *http.Response, context *base.Context) {
 	responseWorker(responses, context.Logger, func(response *http.Response, body []byte) {
-		context.Logger.Println("Response: ", response.StatusCode, response.Request.URL)
+		context.Logger.Println("Response:", response.StatusCode, response.Request.URL)
 		context.Out.Printf("%s", body)
 	})
 }
@@ -77,7 +77,7 @@ func directoryForFile(baseDirectory string, filename string, subdirLength int) s
 		sliceEnd := 1
 
 		// don't create directories longer than 4 binary hex characters (4^16 = 65k directories)
-		if (subdirLength > 2) {
+		if subdirLength > 2 {
 			sliceEnd = 2
 		}
 

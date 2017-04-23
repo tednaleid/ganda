@@ -4,9 +4,13 @@ A utility app that you can pipe urls to and it will request them all in parallel
 
 Given a file with a list of IDs in it, you could do something like:
 
-    cat id_list.txt | sed 's/\(.*\)/https:\/\/api.example.com\/resource\/\1/' | ./ganda
+    cat id_list.txt | awk '{print "https://api.example.com/resource/%s?apikey=foo\n", $1}' | ganda
     
-and that will pipe a stream of urls into `ganda` in the format `https://api.example.com/resource/<ID>`.
+and that will pipe a stream of urls into `ganda` in the format `https://api.example.com/resource/<ID>?apikey=foo`.
+
+Alternatively, if you have a file full of urls (one per line), you can just tell `ganda` to run that:
+
+    ganda my_file_of_urls.txt
 
 If you give `ganda` a `-o <directory name>` parameter, it will save the body of each in a subdirectory.
 

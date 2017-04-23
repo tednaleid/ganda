@@ -66,12 +66,12 @@ func createApp() *cli.App {
 			Usage:       "if flag is present, omit showing response code for each url only output response bodies",
 			Destination: &settings.Silent,
 		},
-		// TODO should we add 429 to the things we retry with smarts about when to retry?
-		//cli.IntFlag{
-		//	Name:  "retry",
-		//	Usage: "Number of retries on transient errors (5XX status codes) to attempt",
-		//	Value: 0,
-		//},
+		cli.IntFlag{
+			Name:        "retry",
+			Usage:       "max number of retries on transient errors (5XX status codes/timeouts) to attempt",
+			Value:       settings.Retries,
+			Destination: &settings.Retries,
+		},
 	}
 
 	app.Before = func(c *cli.Context) error {

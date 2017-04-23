@@ -3,9 +3,17 @@ package requests
 import (
 	"crypto/tls"
 	"github.com/tednaleid/ganda/base"
+	"log"
 	"net/http"
 	"sync"
+	"time"
 )
+
+type HttpClient struct {
+	MaxRetries int
+	Client     *http.Client
+	Logger     *log.Logger
+}
 
 func StartRequestWorkers(requests <-chan string, responses chan<- *http.Response, context *base.Context) *sync.WaitGroup {
 	var requestWaitGroup sync.WaitGroup
@@ -22,28 +30,46 @@ func StartRequestWorkers(requests <-chan string, responses chan<- *http.Response
 }
 
 func requestWorker(context *base.Context, requests <-chan string, responses chan<- *http.Response) {
-	client := httpClient(context)
+	httpClient := NewHttpClient(context)
 	for url := range requests {
 		request := createRequest(url, context.RequestMethod, context.RequestHeaders)
 
-		response, err := client.Do(request)
+		finalResponse, err := requestWithRetry(httpClient, request, 0)
 
 		if err == nil {
-			responses <- response
+			responses <- finalResponse
 		} else {
 			context.Logger.Println(url, "Error:", err)
 		}
 	}
 }
 
-func httpClient(context *base.Context) *http.Client {
-	return &http.Client{
-		Timeout: context.ConnectTimeoutDuration,
-		Transport: &http.Transport{
-			MaxIdleConns:        500,
-			MaxIdleConnsPerHost: 50,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
+func requestWithRetry(httpClient *HttpClient, request *http.Request, previouslyFailed int) (*http.Response, error) {
+	response, err := httpClient.Client.Do(request)
+
+	if previouslyFailed < httpClient.MaxRetries && (err != nil || response.StatusCode >= 500) {
+		// TODO add some output on failure
+		failed := previouslyFailed + 1
+		time.Sleep(time.Duration(failed) * time.Second)
+		return requestWithRetry(httpClient, request, failed)
+	}
+
+	return response, err
+}
+
+func NewHttpClient(context *base.Context) *HttpClient {
+	return &HttpClient{
+		MaxRetries: context.Retries,
+		Logger:     context.Logger,
+		Client: &http.Client{
+			Timeout: context.ConnectTimeoutDuration,
+			Transport: &http.Transport{
+				MaxIdleConns:        500,
+				MaxIdleConnsPerHost: 50,
+				TLSClientConfig: &tls.Config{
+					// TODO turn this into a -k flag
+					InsecureSkipVerify: true,
+				},
 			},
 		},
 	}

@@ -1,13 +1,13 @@
 package base
 
 import (
+	"bufio"
+	"github.com/tednaleid/ganda/urls"
+	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 	"time"
-	"bufio"
-	"os"
-	"io/ioutil"
-	"github.com/tednaleid/ganda/urls"
 )
 
 type RequestHeader struct {
@@ -22,6 +22,7 @@ type Settings struct {
 	SubdirLength          int
 	RequestMethod         string
 	ConnectTimeoutSeconds int
+	Retries               int
 	RequestHeaders        []RequestHeader
 	UrlFilename           string
 }
@@ -33,6 +34,7 @@ func NewSettings() *Settings {
 		RequestWorkers:        30,
 		SubdirLength:          0,
 		ConnectTimeoutSeconds: 10,
+		Retries:               0,
 	}
 
 	return &settings
@@ -45,6 +47,7 @@ type Context struct {
 	SubdirLength           int
 	RequestWorkers         int
 	ConnectTimeoutDuration time.Duration
+	Retries                int
 	Logger                 *log.Logger
 	Out                    *log.Logger
 	RequestHeaders         []RequestHeader
@@ -61,9 +64,8 @@ func NewContext(settings *Settings) (*Context, error) {
 		RequestWorkers:         settings.RequestWorkers,
 		RequestHeaders:         settings.RequestHeaders,
 		ConnectTimeoutDuration: time.Duration(settings.ConnectTimeoutSeconds) * time.Second,
-		Out:                    log.New(os.Stdout, "", 0),
-		Logger:                 log.New(os.Stderr, "", 0),
-
+		Out:    log.New(os.Stdout, "", 0),
+		Logger: log.New(os.Stderr, "", 0),
 	}
 
 	context.UrlScanner, err = urls.UrlScanner(settings.UrlFilename, context.Logger)
