@@ -116,7 +116,7 @@ func TestRetryEnabledShouldRetry5XX(t *testing.T) {
 	assert.Equal(t, 2, requests, "had a failed request followed by a successful one")
 	assertOutput(t, scaffold,
 		"Retried request\n",
-		"Response: 200 "+scaffold.BaseURL+"/bar\n")
+		"Response: 500 "+scaffold.BaseURL+"/bar (1)\nResponse: 200 "+scaffold.BaseURL+"/bar\n")
 }
 
 func TestRunningOutOfRetriesShouldShowError(t *testing.T) {
@@ -137,7 +137,7 @@ func TestRunningOutOfRetriesShouldShowError(t *testing.T) {
 	assert.Equal(t, 3, requests, "3 total requests (original and 2 retries), all failed so expecting error")
 	assertOutput(t, scaffold,
 		"\n",
-		"Response: 500 "+scaffold.BaseURL+"/bar\n")
+		"Response: 500 "+scaffold.BaseURL+"/bar (1)\nResponse: 500 "+scaffold.BaseURL+"/bar (2)\nResponse: 500 "+scaffold.BaseURL+"/bar\n")
 }
 
 func TestRetryEnabledShouldNotRetry4XX(t *testing.T) {
@@ -183,7 +183,7 @@ func TestRetryEnabledShouldRetryTimeout(t *testing.T) {
 	assert.Equal(t, 2, requestCount, "expected a second request")
 	assertOutput(t, scaffold,
 		"Request 2\n",
-		"Response: 200 "+scaffold.BaseURL+"/bar\n")
+		scaffold.BaseURL+"/bar (1) Error: Get "+scaffold.BaseURL+"/bar: net/http: request canceled (Client.Timeout exceeded while awaiting headers)\nResponse: 200 "+scaffold.BaseURL+"/bar\n")
 }
 
 func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {
@@ -215,7 +215,7 @@ func newTestContext(scaffold *Scaffold, expectedURLPaths []string) *base.Context
 		RequestWorkers: 1,
 		UrlScanner:     urlsScanner(expectedURLPaths),
 		Out:            scaffold.StandardOutMock,
-		Logger:         scaffold.LoggerMock,
+		Logger:         base.NewPlainLeveledLogger(scaffold.LoggerMock),
 	}
 }
 

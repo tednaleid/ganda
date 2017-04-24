@@ -30,37 +30,37 @@ to create the `ganda` binary and then copy it somewhere into your path.
 
 # Usage
 
-    $ ganda --help
-
-    NAME:
-       ganda
-
-    USAGE:
-       ganda [options] [file of urls]  OR  <urls on stdout> | ganda [options]
-
-    VERSION:
-       0.0.4
-
-    DESCRIPTION:
-       Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel
-
-    AUTHOR:
-       Ted Naleid <contact@naleid.com>
-
-    COMMANDS:
-         help, h  Shows a list of commands or help for one command
-
-    GLOBAL OPTIONS:
-       --output value, -o value         the output base directory to save downloaded files, if omitted will stream response bodies to stdout
-       --request value, -X value        HTTP request method to use (default: "GET")
-       --header value, -H value         headers to send with every request, can be used multiple times (gzip and keep-alive are already there)
-       --workers value, -W value        number of concurrent workers that will be making requests (default: 30)
-       --subdir-length value, -S value  length of hashed subdirectory name to put saved files when using -o; use 2 for > 5k urls, 4 for > 5M urls (default: 0)
-       --connect-timeout value          number of seconds to wait for a connection to be established before timeout (default: 10)
-       --silent, -s                     if flag is present, omit showing response code for each url only output response bodies
-       --retry value                    max number of retries on transient errors (5XX status codes/timeouts) to attempt (default: 0)
-       --help, -h                       show help
-   --version, -v                    print the version
+    $ ganda help
+      NAME:
+         ganda
+      
+      USAGE:
+         ganda [options] [file of urls]  OR  <urls on stdout> | ganda [options]
+      
+      VERSION:
+         0.0.5
+      
+      DESCRIPTION:
+         Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel
+      
+      AUTHOR:
+         Ted Naleid <contact@naleid.com>
+      
+      COMMANDS:
+           help, h  Shows a list of commands or help for one command
+      
+      GLOBAL OPTIONS:
+         --output value, -o value         the output base directory to save downloaded files, if omitted will stream response bodies to stdout
+         --request value, -X value        HTTP request method to use (default: "GET")
+         --header value, -H value         headers to send with every request, can be used multiple times (gzip and keep-alive are already there)
+         --workers value, -W value        number of concurrent workers that will be making requests (default: 30)
+         --subdir-length value, -S value  length of hashed subdirectory name to put saved files when using -o; use 2 for > 5k urls, 4 for > 5M urls (default: 0)
+         --connect-timeout value          number of seconds to wait for a connection to be established before timeout (default: 10)
+         --silent, -s                     if flag is present, omit showing response code for each url only output response bodies
+         --no-color                       if flag is present, don't add color to success/warn messages
+         --retry value                    max number of retries on transient errors (5XX status codes/timeouts) to attempt (default: 0)
+         --help, -h                       show help
+         --version, -v                    print the version
        
 # Example
 

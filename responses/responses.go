@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/tednaleid/ganda/base"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -36,24 +35,24 @@ func responseSavingWorker(responses <-chan *http.Response, context *base.Context
 	responseWorker(responses, context.Logger, func(response *http.Response, body []byte) {
 		filename := specialCharactersRegexp.ReplaceAllString(response.Request.URL.String(), "-")
 		fullPath := saveBodyToFile(context.BaseDirectory, context.SubdirLength, filename, body)
-		context.Logger.Println("Response: ", response.StatusCode, response.Request.URL, "->", fullPath)
+		context.Logger.LogResponse(response.StatusCode, response.Request.URL.String()+" -> "+fullPath)
 	})
 }
 
 func responsePrintingWorker(responses <-chan *http.Response, context *base.Context) {
 	responseWorker(responses, context.Logger, func(response *http.Response, body []byte) {
-		context.Logger.Println("Response:", response.StatusCode, response.Request.URL)
+		context.Logger.LogResponse(response.StatusCode, response.Request.URL.String())
 		context.Out.Printf("%s", body)
 	})
 }
 
-func responseWorker(responses <-chan *http.Response, logger *log.Logger, responseBodyAction func(*http.Response, []byte)) {
+func responseWorker(responses <-chan *http.Response, logger *base.LeveledLogger, responseBodyAction func(*http.Response, []byte)) {
 	for response := range responses {
 		body, err := ioutil.ReadAll(response.Body)
 		response.Body.Close()
 
 		if err != nil {
-			logger.Printf("%s Response error status (%d): %v\n", response.Request.URL, response.StatusCode, err)
+			logger.Warn("%s Response error status (%d): %v\n", response.Request.URL, response.StatusCode, err)
 		} else {
 			responseBodyAction(response, body)
 		}

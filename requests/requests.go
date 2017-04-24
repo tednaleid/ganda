@@ -2,8 +2,8 @@ package requests
 
 import (
 	"crypto/tls"
+	"fmt"
 	"github.com/tednaleid/ganda/base"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -12,7 +12,7 @@ import (
 type HttpClient struct {
 	MaxRetries int
 	Client     *http.Client
-	Logger     *log.Logger
+	Logger     *base.LeveledLogger
 }
 
 func StartRequestWorkers(requests <-chan string, responses chan<- *http.Response, context *base.Context) *sync.WaitGroup {
@@ -39,7 +39,7 @@ func requestWorker(context *base.Context, requests <-chan string, responses chan
 		if err == nil {
 			responses <- finalResponse
 		} else {
-			context.Logger.Println(url, "Error:", err)
+			httpClient.Logger.LogError(err, url)
 		}
 	}
 }
@@ -48,9 +48,18 @@ func requestWithRetry(httpClient *HttpClient, request *http.Request, previouslyF
 	response, err := httpClient.Client.Do(request)
 
 	if previouslyFailed < httpClient.MaxRetries && (err != nil || response.StatusCode >= 500) {
-		// TODO add some output on failure
 		failed := previouslyFailed + 1
+
+		message := fmt.Sprintf("%s (%d)", request.URL.String(), failed)
+
+		if err == nil {
+			httpClient.Logger.LogResponse(response.StatusCode, message)
+		} else {
+			httpClient.Logger.LogError(err, message)
+		}
+
 		time.Sleep(time.Duration(failed) * time.Second)
+
 		return requestWithRetry(httpClient, request, failed)
 	}
 
