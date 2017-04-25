@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"github.com/tednaleid/ganda/base"
+	"github.com/tednaleid/ganda/config"
+	"github.com/tednaleid/ganda/execcontext"
+	"github.com/tednaleid/ganda/logger"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -84,10 +86,10 @@ func TestTimeout(t *testing.T) {
 	defer scaffold.Server.Close()
 
 	url := scaffold.BaseURL + "/bar"
-	context := newTestContext(scaffold, []string{url})
-	context.ConnectTimeoutDuration = time.Duration(1) * time.Millisecond
+	c := newTestContext(scaffold, []string{url})
+	c.ConnectTimeoutDuration = time.Duration(1) * time.Millisecond
 
-	run(context)
+	run(c)
 
 	assertOutput(t, scaffold,
 		"",
@@ -198,7 +200,7 @@ func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {
 
 	context := newTestContext(scaffold, []string{scaffold.BaseURL + "/bar"})
 
-	context.RequestHeaders = []base.RequestHeader{
+	context.RequestHeaders = []config.RequestHeader{
 		{Key: "foo", Value: "bar"},
 		{Key: "x-baz", Value: "qux"},
 	}
@@ -210,12 +212,12 @@ func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {
 		"Response: 200 "+scaffold.BaseURL+"/bar\n")
 }
 
-func newTestContext(scaffold *Scaffold, expectedURLPaths []string) *base.Context {
-	return &base.Context{
+func newTestContext(scaffold *Scaffold, expectedURLPaths []string) *execcontext.Context {
+	return &execcontext.Context{
 		RequestWorkers: 1,
 		UrlScanner:     urlsScanner(expectedURLPaths),
 		Out:            scaffold.StandardOutMock,
-		Logger:         base.NewPlainLeveledLogger(scaffold.LoggerMock),
+		Logger:         logger.NewPlainLeveledLogger(scaffold.LoggerMock),
 	}
 }
 

@@ -1,21 +1,15 @@
 package requests
 
 import (
-	"crypto/tls"
 	"fmt"
-	"github.com/tednaleid/ganda/base"
+	"github.com/tednaleid/ganda/config"
+	"github.com/tednaleid/ganda/execcontext"
 	"net/http"
 	"sync"
 	"time"
 )
 
-type HttpClient struct {
-	MaxRetries int
-	Client     *http.Client
-	Logger     *base.LeveledLogger
-}
-
-func StartRequestWorkers(requests <-chan string, responses chan<- *http.Response, context *base.Context) *sync.WaitGroup {
+func StartRequestWorkers(requests <-chan string, responses chan<- *http.Response, context *execcontext.Context) *sync.WaitGroup {
 	var requestWaitGroup sync.WaitGroup
 	requestWaitGroup.Add(context.RequestWorkers)
 
@@ -29,8 +23,8 @@ func StartRequestWorkers(requests <-chan string, responses chan<- *http.Response
 	return &requestWaitGroup
 }
 
-func requestWorker(context *base.Context, requests <-chan string, responses chan<- *http.Response) {
-	httpClient := NewHttpClient(context)
+func requestWorker(context *execcontext.Context, requests <-chan string, responses chan<- *http.Response) {
+	httpClient := context.NewHttpClient()
 	for url := range requests {
 		request := createRequest(url, context.RequestMethod, context.RequestHeaders)
 
@@ -44,7 +38,7 @@ func requestWorker(context *base.Context, requests <-chan string, responses chan
 	}
 }
 
-func requestWithRetry(httpClient *HttpClient, request *http.Request, previouslyFailed int) (*http.Response, error) {
+func requestWithRetry(httpClient *execcontext.HttpClient, request *http.Request, previouslyFailed int) (*http.Response, error) {
 	response, err := httpClient.Client.Do(request)
 
 	if previouslyFailed < httpClient.MaxRetries && (err != nil || response.StatusCode >= 500) {
@@ -66,27 +60,12 @@ func requestWithRetry(httpClient *HttpClient, request *http.Request, previouslyF
 	return response, err
 }
 
-func NewHttpClient(context *base.Context) *HttpClient {
-	return &HttpClient{
-		MaxRetries: context.Retries,
-		Logger:     context.Logger,
-		Client: &http.Client{
-			Timeout: context.ConnectTimeoutDuration,
-			Transport: &http.Transport{
-				MaxIdleConns:        500,
-				MaxIdleConnsPerHost: 50,
-				TLSClientConfig: &tls.Config{
-					// TODO turn this into a -k flag
-					InsecureSkipVerify: true,
-				},
-			},
-		},
-	}
-}
-
-func createRequest(url string, requestMethod string, requestHeaders []base.RequestHeader) *http.Request {
+func createRequest(url string, requestMethod string, requestHeaders []config.RequestHeader) *http.Request {
 	request, err := http.NewRequest(requestMethod, url, nil)
-	base.Check(err)
+
+	if err != nil {
+		panic(err)
+	}
 
 	for _, header := range requestHeaders {
 		request.Header.Add(header.Key, header.Value)

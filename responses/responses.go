@@ -3,7 +3,8 @@ package responses
 import (
 	"crypto/md5"
 	"fmt"
-	"github.com/tednaleid/ganda/base"
+	"github.com/tednaleid/ganda/execcontext"
+	"github.com/tednaleid/ganda/logger"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -11,7 +12,7 @@ import (
 	"sync"
 )
 
-func StartResponseWorkers(responses <-chan *http.Response, context *base.Context) *sync.WaitGroup {
+func StartResponseWorkers(responses <-chan *http.Response, context *execcontext.Context) *sync.WaitGroup {
 	var responseWaitGroup sync.WaitGroup
 	responseWaitGroup.Add(context.RequestWorkers)
 
@@ -29,7 +30,7 @@ func StartResponseWorkers(responses <-chan *http.Response, context *base.Context
 	return &responseWaitGroup
 }
 
-func responseSavingWorker(responses <-chan *http.Response, context *base.Context) {
+func responseSavingWorker(responses <-chan *http.Response, context *execcontext.Context) {
 	specialCharactersRegexp := regexp.MustCompile("[^A-Za-z0-9]+")
 
 	responseWorker(responses, context.Logger, func(response *http.Response, body []byte) {
@@ -39,14 +40,14 @@ func responseSavingWorker(responses <-chan *http.Response, context *base.Context
 	})
 }
 
-func responsePrintingWorker(responses <-chan *http.Response, context *base.Context) {
+func responsePrintingWorker(responses <-chan *http.Response, context *execcontext.Context) {
 	responseWorker(responses, context.Logger, func(response *http.Response, body []byte) {
 		context.Logger.LogResponse(response.StatusCode, response.Request.URL.String())
 		context.Out.Printf("%s", body)
 	})
 }
 
-func responseWorker(responses <-chan *http.Response, logger *base.LeveledLogger, responseBodyAction func(*http.Response, []byte)) {
+func responseWorker(responses <-chan *http.Response, logger *logger.LeveledLogger, responseBodyAction func(*http.Response, []byte)) {
 	for response := range responses {
 		body, err := ioutil.ReadAll(response.Body)
 		response.Body.Close()
@@ -64,7 +65,11 @@ func saveBodyToFile(baseDirectory string, subdirLength int, filename string, bod
 	directory := directoryForFile(baseDirectory, filename, subdirLength)
 	fullPath := directory + filename
 	err := ioutil.WriteFile(fullPath, body, 0644)
-	base.Check(err)
+
+	if err != nil {
+		panic(err)
+	}
+
 	return fullPath
 }
 

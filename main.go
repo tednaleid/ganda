@@ -2,7 +2,8 @@ package main
 
 import (
 	"bufio"
-	"github.com/tednaleid/ganda/base"
+	"github.com/tednaleid/ganda/config"
+	"github.com/tednaleid/ganda/execcontext"
 	"github.com/tednaleid/ganda/requests"
 	"github.com/tednaleid/ganda/responses"
 	"github.com/urfave/cli"
@@ -16,8 +17,8 @@ func main() {
 }
 
 func createApp() *cli.App {
-	settings := base.NewSettings()
-	var gandaContext *base.Context
+	conf := config.New()
+	var context *execcontext.Context
 
 	app := cli.NewApp()
 	app.Author = "Ted Naleid"
@@ -25,19 +26,19 @@ func createApp() *cli.App {
 	app.Usage = ""
 	app.UsageText = "ganda [options] [file of urls]  OR  <urls on stdout> | ganda [options]"
 	app.Description = "Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel"
-	app.Version = "0.0.5"
+	app.Version = "0.0.6-BETA"
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:        "output, o",
 			Usage:       "the output base directory to save downloaded files, if omitted will stream response bodies to stdout",
-			Destination: &settings.BaseDirectory,
+			Destination: &conf.BaseDirectory,
 		},
 		cli.StringFlag{
 			Name:        "request, X",
-			Value:       settings.RequestMethod,
+			Value:       conf.RequestMethod,
 			Usage:       "HTTP request method to use",
-			Destination: &settings.RequestMethod,
+			Destination: &conf.RequestMethod,
 		},
 		cli.StringSliceFlag{
 			Name:  "header, H",
@@ -46,71 +47,71 @@ func createApp() *cli.App {
 		cli.IntFlag{
 			Name:        "workers, W",
 			Usage:       "number of concurrent workers that will be making requests",
-			Value:       settings.RequestWorkers,
-			Destination: &settings.RequestWorkers,
+			Value:       conf.RequestWorkers,
+			Destination: &conf.RequestWorkers,
 		},
 		cli.IntFlag{
 			Name:        "subdir-length, S",
 			Usage:       "length of hashed subdirectory name to put saved files when using -o; use 2 for > 5k urls, 4 for > 5M urls",
-			Value:       settings.SubdirLength,
-			Destination: &settings.SubdirLength,
+			Value:       conf.SubdirLength,
+			Destination: &conf.SubdirLength,
 		},
 		cli.IntFlag{
 			Name:        "connect-timeout",
 			Usage:       "number of seconds to wait for a connection to be established before timeout",
-			Value:       settings.ConnectTimeoutSeconds,
-			Destination: &settings.ConnectTimeoutSeconds,
+			Value:       conf.ConnectTimeoutSeconds,
+			Destination: &conf.ConnectTimeoutSeconds,
 		},
 		cli.BoolFlag{
 			Name:        "silent, s",
 			Usage:       "if flag is present, omit showing response code for each url only output response bodies",
-			Destination: &settings.Silent,
+			Destination: &conf.Silent,
 		},
 		cli.BoolFlag{
 			Name:        "no-color",
 			Usage:       "if flag is present, don't add color to success/warn messages",
-			Destination: &settings.NoColor,
+			Destination: &conf.NoColor,
 		},
 		cli.IntFlag{
 			Name:        "retry",
 			Usage:       "max number of retries on transient errors (5XX status codes/timeouts) to attempt",
-			Value:       settings.Retries,
-			Destination: &settings.Retries,
+			Value:       conf.Retries,
+			Destination: &conf.Retries,
 		},
 	}
 
-	app.Before = func(c *cli.Context) error {
+	app.Before = func(appctx *cli.Context) error {
 		var err error
 
-		if c.Args().Present() && c.Args().First() != "help" && c.Args().First() != "h" {
-			settings.UrlFilename = c.Args().First()
+		if appctx.Args().Present() && appctx.Args().First() != "help" && appctx.Args().First() != "h" {
+			conf.UrlFilename = appctx.Args().First()
 		}
 
-		for _, header := range c.StringSlice("header") {
-			settings.RequestHeaders = append(settings.RequestHeaders, base.StringToHeader(header))
+		for _, header := range appctx.StringSlice("header") {
+			conf.RequestHeaders = append(conf.RequestHeaders, config.NewRequestHeader(header))
 		}
 
-		gandaContext, err = base.NewContext(settings)
+		context, err = execcontext.New(conf)
 
 		return err
 	}
 
-	app.Action = func(c *cli.Context) error {
-		run(gandaContext)
+	app.Action = func(appctx *cli.Context) error {
+		run(context)
 		return nil
 	}
 
 	return app
 }
 
-func run(context *base.Context) {
+func run(context *execcontext.Context) {
 	requestsChannel := make(chan string)
 	responsesChannel := make(chan *http.Response)
 
 	requestWaitGroup := requests.StartRequestWorkers(requestsChannel, responsesChannel, context)
 	responseWaitGroup := responses.StartResponseWorkers(responsesChannel, context)
 
-	processUrls(requestsChannel, context.UrlScanner)
+	sendUrls(context.UrlScanner, requestsChannel)
 
 	close(requestsChannel)
 	requestWaitGroup.Wait()
@@ -119,7 +120,7 @@ func run(context *base.Context) {
 	responseWaitGroup.Wait()
 }
 
-func processUrls(requests chan<- string, urlScanner *bufio.Scanner) {
+func sendUrls(urlScanner *bufio.Scanner, requests chan<- string) {
 	for urlScanner.Scan() {
 		url := urlScanner.Text()
 		requests <- url
