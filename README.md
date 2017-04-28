@@ -38,7 +38,7 @@ to create the `ganda` binary and then copy it somewhere into your path.
          ganda [options] [file of urls]  OR  <urls on stdout> | ganda [options]
       
       VERSION:
-         0.0.5
+         0.0.6
       
       DESCRIPTION:
          Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel
@@ -56,6 +56,7 @@ to create the `ganda` binary and then copy it somewhere into your path.
          --workers value, -W value        number of concurrent workers that will be making requests (default: 30)
          --subdir-length value, -S value  length of hashed subdirectory name to put saved files when using -o; use 2 for > 5k urls, 4 for > 5M urls (default: 0)
          --connect-timeout value          number of seconds to wait for a connection to be established before timeout (default: 10)
+         --insecure, -k                   if flag is present, skip verification of https certificates
          --silent, -s                     if flag is present, omit showing response code for each url only output response bodies
          --no-color                       if flag is present, don't add color to success/warn messages
          --retry value                    max number of retries on transient errors (5XX status codes/timeouts) to attempt (default: 0)

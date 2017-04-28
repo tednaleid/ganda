@@ -2,12 +2,10 @@ package execcontext
 
 import (
 	"bufio"
-	"crypto/tls"
 	"fmt"
 	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/logger"
 	"log"
-	"net/http"
 	"os"
 	"time"
 )
@@ -15,6 +13,7 @@ import (
 type Context struct {
 	RequestMethod          string
 	WriteFiles             bool
+	Insecure               bool
 	BaseDirectory          string
 	SubdirLength           int
 	RequestWorkers         int
@@ -31,6 +30,7 @@ func New(conf *config.Config) (*Context, error) {
 
 	context := Context{
 		ConnectTimeoutDuration: time.Duration(conf.ConnectTimeoutSeconds) * time.Second,
+		Insecure:               conf.Insecure,
 		RequestMethod:          conf.RequestMethod,
 		BaseDirectory:          conf.BaseDirectory,
 		SubdirLength:           conf.SubdirLength,
@@ -85,28 +85,4 @@ func urlFileScanner(urlFilename string) (*bufio.Scanner, error) {
 
 	file, err := os.Open(urlFilename)
 	return bufio.NewScanner(file), err
-}
-
-type HttpClient struct {
-	MaxRetries int
-	Client     *http.Client
-	Logger     *logger.LeveledLogger
-}
-
-func (context *Context) NewHttpClient() *HttpClient {
-	return &HttpClient{
-		MaxRetries: context.Retries,
-		Logger:     context.Logger,
-		Client: &http.Client{
-			Timeout: context.ConnectTimeoutDuration,
-			Transport: &http.Transport{
-				MaxIdleConns:        500,
-				MaxIdleConnsPerHost: 50,
-				TLSClientConfig: &tls.Config{
-					// TODO turn this into a -k flag
-					InsecureSkipVerify: true,
-				},
-			},
-		},
-	}
 }

@@ -4,6 +4,7 @@ import "strings"
 
 type Config struct {
 	Silent                bool
+	Insecure              bool
 	NoColor               bool
 	BaseDirectory         string
 	RequestWorkers        int
@@ -18,6 +19,7 @@ type Config struct {
 func New() *Config {
 	return &Config{
 		RequestMethod:         "GET",
+		Insecure:              false,
 		Silent:                false,
 		NoColor:               false,
 		RequestWorkers:        30,

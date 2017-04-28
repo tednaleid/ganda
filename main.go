@@ -26,7 +26,7 @@ func createApp() *cli.App {
 	app.Usage = ""
 	app.UsageText = "ganda [options] [file of urls]  OR  <urls on stdout> | ganda [options]"
 	app.Description = "Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel"
-	app.Version = "0.0.6-BETA"
+	app.Version = "0.0.6"
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -61,6 +61,11 @@ func createApp() *cli.App {
 			Usage:       "number of seconds to wait for a connection to be established before timeout",
 			Value:       conf.ConnectTimeoutSeconds,
 			Destination: &conf.ConnectTimeoutSeconds,
+		},
+		cli.BoolFlag{
+			Name:        "insecure, k",
+			Usage:       "if flag is present, skip verification of https certificates",
+			Destination: &conf.Insecure,
 		},
 		cli.BoolFlag{
 			Name:        "silent, s",

@@ -1,13 +1,38 @@
 package requests
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/execcontext"
+	"github.com/tednaleid/ganda/logger"
 	"net/http"
 	"sync"
 	"time"
 )
+
+type HttpClient struct {
+	MaxRetries int
+	Client     *http.Client
+	Logger     *logger.LeveledLogger
+}
+
+func NewHttpClient(context *execcontext.Context) *HttpClient {
+	return &HttpClient{
+		MaxRetries: context.Retries,
+		Logger:     context.Logger,
+		Client: &http.Client{
+			Timeout: context.ConnectTimeoutDuration,
+			Transport: &http.Transport{
+				MaxIdleConns:        500,
+				MaxIdleConnsPerHost: 50,
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: context.Insecure,
+				},
+			},
+		},
+	}
+}
 
 func StartRequestWorkers(requests <-chan string, responses chan<- *http.Response, context *execcontext.Context) *sync.WaitGroup {
 	var requestWaitGroup sync.WaitGroup
@@ -24,7 +49,7 @@ func StartRequestWorkers(requests <-chan string, responses chan<- *http.Response
 }
 
 func requestWorker(context *execcontext.Context, requests <-chan string, responses chan<- *http.Response) {
-	httpClient := context.NewHttpClient()
+	httpClient := NewHttpClient(context)
 	for url := range requests {
 		request := createRequest(url, context.RequestMethod, context.RequestHeaders)
 
@@ -38,7 +63,7 @@ func requestWorker(context *execcontext.Context, requests <-chan string, respons
 	}
 }
 
-func requestWithRetry(httpClient *execcontext.HttpClient, request *http.Request, previouslyFailed int) (*http.Response, error) {
+func requestWithRetry(httpClient *HttpClient, request *http.Request, previouslyFailed int) (*http.Response, error) {
 	response, err := httpClient.Client.Do(request)
 
 	if previouslyFailed < httpClient.MaxRetries && (err != nil || response.StatusCode >= 500) {
