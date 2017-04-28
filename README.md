@@ -20,11 +20,11 @@ If you give `ganda` a `-o <directory name>` parameter, it will save the body of 
 
 Compile with golang, use either 
 
-    go get github.com/tednaleid/ganda
+    go get -u github.com/tednaleid/ganda
     
-to install in your `$GOPATH` or clone the repo and 
+to install in your `$GOPATH/bin` (which you want in your `$PATH`). Otherwise you can clone the repo and 
 
-    go build 
+    go test && go build 
     
 to create the `ganda` binary and then copy it somewhere into your path.
 
