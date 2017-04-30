@@ -8,6 +8,7 @@ type Config struct {
 	NoColor               bool
 	BaseDirectory         string
 	RequestWorkers        int
+	ResponseWorkers       int
 	SubdirLength          int
 	RequestMethod         string
 	ConnectTimeoutSeconds int

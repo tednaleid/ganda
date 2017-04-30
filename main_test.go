@@ -214,10 +214,11 @@ func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {
 
 func newTestContext(scaffold *Scaffold, expectedURLPaths []string) *execcontext.Context {
 	return &execcontext.Context{
-		RequestWorkers: 1,
-		UrlScanner:     urlsScanner(expectedURLPaths),
-		Out:            scaffold.StandardOutMock,
-		Logger:         logger.NewPlainLeveledLogger(scaffold.LoggerMock),
+		RequestWorkers:  1,
+		ResponseWorkers: 1,
+		UrlScanner:      urlsScanner(expectedURLPaths),
+		Out:             scaffold.StandardOutMock,
+		Logger:          logger.NewPlainLeveledLogger(scaffold.LoggerMock),
 	}
 }
 

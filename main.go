@@ -51,6 +51,11 @@ func createApp() *cli.App {
 			Destination: &conf.RequestWorkers,
 		},
 		cli.IntFlag{
+			Name:        "response-workers",
+			Usage:       "number of concurrent workers that will be processing responses, if not specified will be same as --workers",
+			Destination: &conf.ResponseWorkers,
+		},
+		cli.IntFlag{
 			Name:        "subdir-length, S",
 			Usage:       "length of hashed subdirectory name to put saved files when using -o; use 2 for > 5k urls, 4 for > 5M urls",
 			Value:       conf.SubdirLength,

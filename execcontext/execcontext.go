@@ -17,6 +17,7 @@ type Context struct {
 	BaseDirectory          string
 	SubdirLength           int
 	RequestWorkers         int
+	ResponseWorkers        int
 	ConnectTimeoutDuration time.Duration
 	Retries                int
 	Logger                 *logger.LeveledLogger
@@ -35,10 +36,21 @@ func New(conf *config.Config) (*Context, error) {
 		BaseDirectory:          conf.BaseDirectory,
 		SubdirLength:           conf.SubdirLength,
 		RequestWorkers:         conf.RequestWorkers,
+		ResponseWorkers:        conf.ResponseWorkers,
 		RequestHeaders:         conf.RequestHeaders,
 		Out:                    log.New(os.Stdout, "", 0),
 		Logger:                 createLeveledLogger(conf),
 	}
+
+	if context.RequestWorkers <= 0 {
+		context.RequestWorkers = 30
+	}
+
+	if context.ResponseWorkers <= 0 {
+		context.ResponseWorkers = context.RequestWorkers
+	}
+
+	context.Logger.Info("request workers %d, response workers %d", context.RequestWorkers, context.ResponseWorkers)
 
 	context.UrlScanner, err = createUrlScanner(conf.UrlFilename, context.Logger)
 

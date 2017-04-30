@@ -14,9 +14,9 @@ import (
 
 func StartResponseWorkers(responses <-chan *http.Response, context *execcontext.Context) *sync.WaitGroup {
 	var responseWaitGroup sync.WaitGroup
-	responseWaitGroup.Add(context.RequestWorkers)
+	responseWaitGroup.Add(context.ResponseWorkers)
 
-	for i := 1; i <= context.RequestWorkers; i++ {
+	for i := 1; i <= context.ResponseWorkers; i++ {
 		go func() {
 			if context.WriteFiles {
 				responseSavingWorker(responses, context)
