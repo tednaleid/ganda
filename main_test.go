@@ -9,6 +9,7 @@ import (
 	"github.com/tednaleid/ganda/execcontext"
 	"github.com/tednaleid/ganda/logger"
 	"log"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -214,11 +215,12 @@ func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {
 
 func newTestContext(scaffold *Scaffold, expectedURLPaths []string) *execcontext.Context {
 	return &execcontext.Context{
-		RequestWorkers:  1,
-		ResponseWorkers: 1,
-		UrlScanner:      urlsScanner(expectedURLPaths),
-		Out:             scaffold.StandardOutMock,
-		Logger:          logger.NewPlainLeveledLogger(scaffold.LoggerMock),
+		RequestWorkers:    1,
+		ResponseWorkers:   1,
+		ThrottlePerSecond: math.MaxInt32,
+		UrlScanner:        urlsScanner(expectedURLPaths),
+		Out:               scaffold.StandardOutMock,
+		Logger:            logger.NewPlainLeveledLogger(scaffold.LoggerMock),
 	}
 }
 

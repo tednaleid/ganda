@@ -1,6 +1,9 @@
 package config
 
-import "strings"
+import (
+	"math"
+	"strings"
+)
 
 type Config struct {
 	Silent                bool
@@ -12,6 +15,7 @@ type Config struct {
 	SubdirLength          int
 	RequestMethod         string
 	ConnectTimeoutSeconds int
+	ThrottlePerSecond     int
 	Retries               int
 	RequestHeaders        []RequestHeader
 	UrlFilename           string
@@ -26,6 +30,7 @@ func New() *Config {
 		RequestWorkers:        30,
 		SubdirLength:          0,
 		ConnectTimeoutSeconds: 10,
+		ThrottlePerSecond:     math.MaxInt32,
 		Retries:               0,
 	}
 }

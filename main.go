@@ -9,6 +9,7 @@ import (
 	"github.com/urfave/cli"
 	"net/http"
 	"os"
+	"time"
 )
 
 func main() {
@@ -67,6 +68,12 @@ func createApp() *cli.App {
 			Value:       conf.ConnectTimeoutSeconds,
 			Destination: &conf.ConnectTimeoutSeconds,
 		},
+		cli.IntFlag{
+			Name:        "throttle, t",
+			Usage:       "max number of requests to process per second, default is unlimited",
+			Value:       -1,
+			Destination: &conf.ThrottlePerSecond,
+		},
 		cli.BoolFlag{
 			Name:        "insecure, k",
 			Usage:       "if flag is present, skip verification of https certificates",
@@ -121,7 +128,7 @@ func run(context *execcontext.Context) {
 	requestWaitGroup := requests.StartRequestWorkers(requestsChannel, responsesChannel, context)
 	responseWaitGroup := responses.StartResponseWorkers(responsesChannel, context)
 
-	sendUrls(context.UrlScanner, requestsChannel)
+	sendUrls(context.UrlScanner, requestsChannel, context.ThrottlePerSecond)
 
 	close(requestsChannel)
 	requestWaitGroup.Wait()
@@ -130,8 +137,15 @@ func run(context *execcontext.Context) {
 	responseWaitGroup.Wait()
 }
 
-func sendUrls(urlScanner *bufio.Scanner, requests chan<- string) {
+func sendUrls(urlScanner *bufio.Scanner, requests chan<- string, throttleRequestsPerSecond int) {
+	count := 1
+	throttle := time.Tick(time.Second)
+
 	for urlScanner.Scan() {
+		if count%throttleRequestsPerSecond == 0 {
+			<-throttle
+		}
+		count++
 		url := urlScanner.Text()
 		requests <- url
 	}

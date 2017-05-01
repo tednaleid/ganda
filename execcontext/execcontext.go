@@ -6,6 +6,7 @@ import (
 	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/logger"
 	"log"
+	"math"
 	"os"
 	"time"
 )
@@ -19,6 +20,7 @@ type Context struct {
 	RequestWorkers         int
 	ResponseWorkers        int
 	ConnectTimeoutDuration time.Duration
+	ThrottlePerSecond      int
 	Retries                int
 	Logger                 *logger.LeveledLogger
 	Out                    *log.Logger
@@ -38,8 +40,13 @@ func New(conf *config.Config) (*Context, error) {
 		RequestWorkers:         conf.RequestWorkers,
 		ResponseWorkers:        conf.ResponseWorkers,
 		RequestHeaders:         conf.RequestHeaders,
+		ThrottlePerSecond:      math.MaxInt32,
 		Out:                    log.New(os.Stdout, "", 0),
 		Logger:                 createLeveledLogger(conf),
+	}
+
+	if conf.ThrottlePerSecond > 0 {
+		context.ThrottlePerSecond = conf.ThrottlePerSecond
 	}
 
 	if context.RequestWorkers <= 0 {
@@ -49,8 +56,6 @@ func New(conf *config.Config) (*Context, error) {
 	if context.ResponseWorkers <= 0 {
 		context.ResponseWorkers = context.RequestWorkers
 	}
-
-	context.Logger.Info("request workers %d, response workers %d", context.RequestWorkers, context.ResponseWorkers)
 
 	context.UrlScanner, err = createUrlScanner(conf.UrlFilename, context.Logger)
 
