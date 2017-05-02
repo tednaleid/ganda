@@ -104,8 +104,10 @@ func createApp() *cli.App {
 			conf.UrlFilename = appctx.Args().First()
 		}
 
-		for _, header := range appctx.StringSlice("header") {
-			conf.RequestHeaders = append(conf.RequestHeaders, config.NewRequestHeader(header))
+		conf.RequestHeaders, err = config.ConvertRequestHeaders(appctx.StringSlice("header"))
+
+		if err != nil {
+			return err
 		}
 
 		context, err = execcontext.New(conf)
