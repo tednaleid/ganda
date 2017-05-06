@@ -1,11 +1,12 @@
 package responses
 
 import (
+	"bytes"
 	"crypto/md5"
 	"fmt"
 	"github.com/tednaleid/ganda/execcontext"
 	"github.com/tednaleid/ganda/logger"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -33,41 +34,44 @@ func StartResponseWorkers(responses <-chan *http.Response, context *execcontext.
 func responseSavingWorker(responses <-chan *http.Response, context *execcontext.Context) {
 	specialCharactersRegexp := regexp.MustCompile("[^A-Za-z0-9]+")
 
-	responseWorker(responses, context.Logger, func(response *http.Response, body []byte) {
+	responseWorker(responses, context.Logger, func(response *http.Response) {
 		filename := specialCharactersRegexp.ReplaceAllString(response.Request.URL.String(), "-")
-		fullPath := saveBodyToFile(context.BaseDirectory, context.SubdirLength, filename, body)
+		fullPath := saveBodyToFile(context.BaseDirectory, context.SubdirLength, filename, response.Body)
 		context.Logger.LogResponse(response.StatusCode, response.Request.URL.String()+" -> "+fullPath)
 	})
 }
 
 func responsePrintingWorker(responses <-chan *http.Response, context *execcontext.Context) {
-	responseWorker(responses, context.Logger, func(response *http.Response, body []byte) {
+	responseWorker(responses, context.Logger, func(response *http.Response) {
+		defer response.Body.Close()
 		context.Logger.LogResponse(response.StatusCode, response.Request.URL.String())
-		if len(body) > 0 {
-			context.Out.Printf("%s", body)
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(response.Body)
+		if buf.Len() > 0 {
+			context.Out.Printf("%s", buf)
 		}
 	})
 }
 
-func responseWorker(responses <-chan *http.Response, logger *logger.LeveledLogger, responseBodyAction func(*http.Response, []byte)) {
+func responseWorker(responses <-chan *http.Response, logger *logger.LeveledLogger, responseHandler func(*http.Response)) {
 	for response := range responses {
-		body, err := ioutil.ReadAll(response.Body)
-		response.Body.Close()
-
-		if err != nil {
-			logger.Warn("%s Response error status (%d): %v\n", response.Request.URL, response.StatusCode, err)
-		} else {
-			responseBodyAction(response, body)
-		}
+		responseHandler(response)
 	}
 
 }
 
-func saveBodyToFile(baseDirectory string, subdirLength int, filename string, body []byte) string {
+func saveBodyToFile(baseDirectory string, subdirLength int, filename string, body io.ReadCloser) string {
+	defer body.Close()
+
 	directory := directoryForFile(baseDirectory, filename, subdirLength)
 	fullPath := directory + filename
-	err := ioutil.WriteFile(fullPath, body, 0644)
 
+	file, err := os.Create(fullPath)
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = io.Copy(file, body)
 	if err != nil {
 		panic(err)
 	}
