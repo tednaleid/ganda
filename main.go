@@ -9,11 +9,12 @@ import (
 	"github.com/urfave/cli"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
 // overridden at build time with `-ldflags "-X main.version=X.X.X"`
-var version = "0.1.0-beta"
+var version = "master"
 
 func main() {
 	app := createApp()
@@ -143,15 +144,15 @@ func run(context *execcontext.Context) {
 }
 
 func sendUrls(urlScanner *bufio.Scanner, requests chan<- string, throttleRequestsPerSecond int) {
-	count := 1
+	count := 0
 	throttle := time.Tick(time.Second)
 
 	for urlScanner.Scan() {
+		count++
 		if count%throttleRequestsPerSecond == 0 {
 			<-throttle
 		}
-		count++
-		url := urlScanner.Text()
+		url := strings.TrimSpace(urlScanner.Text())
 		requests <- url
 	}
 }

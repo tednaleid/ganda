@@ -43,7 +43,9 @@ func responseSavingWorker(responses <-chan *http.Response, context *execcontext.
 func responsePrintingWorker(responses <-chan *http.Response, context *execcontext.Context) {
 	responseWorker(responses, context.Logger, func(response *http.Response, body []byte) {
 		context.Logger.LogResponse(response.StatusCode, response.Request.URL.String())
-		context.Out.Printf("%s", body)
+		if len(body) > 0 {
+			context.Out.Printf("%s", body)
+		}
 	})
 }
 

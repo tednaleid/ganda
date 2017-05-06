@@ -74,7 +74,7 @@ func TestErrorResponse(t *testing.T) {
 	run(context)
 
 	assertOutput(t, scaffold,
-		"\n",
+		"",
 		"Response: 404 "+scaffold.BaseURL+"/bar\n")
 }
 
@@ -139,7 +139,7 @@ func TestRunningOutOfRetriesShouldShowError(t *testing.T) {
 
 	assert.Equal(t, 3, requests, "3 total requests (original and 2 retries), all failed so expecting error")
 	assertOutput(t, scaffold,
-		"\n",
+		"",
 		"Response: 500 "+scaffold.BaseURL+"/bar (1)\nResponse: 500 "+scaffold.BaseURL+"/bar (2)\nResponse: 500 "+scaffold.BaseURL+"/bar\n")
 }
 
@@ -160,7 +160,7 @@ func TestRetryEnabledShouldNotRetry4XX(t *testing.T) {
 
 	assert.Equal(t, 1, requestCount, "had a failed request")
 	assertOutput(t, scaffold,
-		"\n",
+		"",
 		"Response: 400 "+scaffold.BaseURL+"/bar\n")
 }
 
