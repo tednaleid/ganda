@@ -12,6 +12,9 @@ import (
 	"time"
 )
 
+// overridden at build time with `-ldflags "-X main.version=X.X.X"`
+var version = "0.1.0-beta"
+
 func main() {
 	app := createApp()
 	app.Run(os.Args)
@@ -27,7 +30,7 @@ func createApp() *cli.App {
 	app.Usage = ""
 	app.UsageText = "ganda [options] [file of urls]  OR  <urls on stdout> | ganda [options]"
 	app.Description = "Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel"
-	app.Version = "0.1.0"
+	app.Version = version
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
