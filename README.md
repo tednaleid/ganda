@@ -1,6 +1,10 @@
 # What is `ganda`?
 
-A utility app that you can pipe urls to and it will request them all in parallel.  It optionally also allows saving the results of each request in a directory for later analysis.
+Ganda lets you make HTTP/HTTPS requests to hundreds to millions of URLs in just a few minutes.
+
+It's designed with the unix philosiphy of ["do one thing well"](https://en.wikipedia.org/wiki/Unix_philosophy#Do_One_Thing_and_Do_It_Well) and wants to be used in a chain of command line pipes to make its requests in parallel. 
+
+By default, it will echo all response bodies to standard out but can optionally save the results of each request in a directory for later analysis.
 
 Given a file with a list of IDs in it, you could do something like:
 
@@ -12,21 +16,24 @@ Alternatively, if you have a file full of urls (one per line), you can just tell
 
     ganda my_file_of_urls.txt
 
-If you give `ganda` a `-o <directory name>` parameter, it will save the body of each in a subdirectory.
-
-`ganda` is designed to be able to save the results of hundreds of thousands of requests within a few minutes.
+If you give `ganda` a `-o <directory name>` parameter, it will save the body of each in a separate file inside `<directory name>`.  If you want a single file, just pipe stdout the normal way `... | ganda > result.txt`.
 
 # Installing
 
-Compile with golang, use either 
+You currently have 3 options:
+
+1. on MacOS you can install with [homebrew](https://brew.sh/)
+
+    brew tap tednaleid/homebrew-ganda
+    brew install ganda
+    
+2. download the appropriate binary from the [releases page](https://github.com/tednaleid/ganda/releases) and put it in your path
+
+3. Compile from source with golang:
 
     go get -u github.com/tednaleid/ganda
     
-to install in your `$GOPATH/bin` (which you want in your `$PATH`). Otherwise you can clone the repo and 
-
-    go test && go build 
-    
-to create the `ganda` binary and then copy it somewhere into your path.
+to install in your `$GOPATH/bin` (which you want in your `$PATH`)
 
 # Usage
 
@@ -38,7 +45,7 @@ to create the `ganda` binary and then copy it somewhere into your path.
          ganda [options] [file of urls]  OR  <urls on stdout> | ganda [options]
       
       VERSION:
-         0.0.7
+         0.1.0
       
       DESCRIPTION:
          Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel
@@ -90,7 +97,7 @@ Output (shows hte HTTP status code of 200 OK for each along with the resulting o
     Response:  200 https://en.wikipedia.org/w/api.php?action=query&titles=aardvark&prop=revisions&rvprop=content&format=json -> out/c4/https-en-wikipedia-org-w-api-php-action-query-titles-aardvark-prop-revisions-rvprop-content-format-json
     ... 990 more lines
     
-As `ganda` is designed to make many thousands of requests, the files are not saved in the root of the output directory.  Instead the url is hashed and turned into a 2 character subdirectory (similar to how git stores its objects).
+As `ganda` is designed to make many thousands of requests, you can use the `--subdir-length` to avoid making your filesystem unhappy with 1M files in a single directory.  That switch will hash each url and place the response in a subdirectory (similar to how git stores its objects).
 
 example run:
 
