@@ -23,16 +23,19 @@ If you give `ganda` a `-o <directory name>` parameter, it will save the body of 
 You currently have 3 options:
 
 1. on MacOS you can install with [homebrew](https://brew.sh/)
+```
+brew tap tednaleid/homebrew-ganda
+brew install ganda
+```
 
-    brew tap tednaleid/homebrew-ganda
-    brew install ganda
-    
 2. download the appropriate binary from the [releases page](https://github.com/tednaleid/ganda/releases) and put it in your path
 
 3. Compile from source with golang:
 
-    go get -u github.com/tednaleid/ganda
-    
+```
+go get -u github.com/tednaleid/ganda
+```
+
 to install in your `$GOPATH/bin` (which you want in your `$PATH`)
 
 # Usage
