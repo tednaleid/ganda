@@ -10,6 +10,7 @@ type Config struct {
 	Silent                bool
 	Insecure              bool
 	NoColor               bool
+	JsonEnvelope          bool
 	BaseDirectory         string
 	RequestWorkers        int
 	ResponseWorkers       int
@@ -28,6 +29,7 @@ func New() *Config {
 		Insecure:              false,
 		Silent:                false,
 		NoColor:               false,
+		JsonEnvelope:          false,
 		RequestWorkers:        30,
 		SubdirLength:          0,
 		ConnectTimeoutSeconds: 10,

@@ -42,15 +42,31 @@ func responseSavingWorker(responses <-chan *http.Response, context *execcontext.
 }
 
 func responsePrintingWorker(responses <-chan *http.Response, context *execcontext.Context) {
+
 	responseWorker(responses, context.Logger, func(response *http.Response) {
-		defer response.Body.Close()
-		context.Logger.LogResponse(response.StatusCode, response.Request.URL.String())
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(response.Body)
+		printResponse(response, context)
+	})
+}
+
+func printResponse(response *http.Response, context *execcontext.Context) {
+	defer response.Body.Close()
+	context.Logger.LogResponse(response.StatusCode, response.Request.URL.String())
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(response.Body)
+
+	if (context.JsonEnvelope) {
+		if buf.Len() > 0 {
+			context.Out.Printf("{ \"url\": \"%s\", \"code\": %d, \"body\": %s }", response.Request.URL.String(), response.StatusCode, buf)
+
+		} else {
+			context.Out.Printf("{ \"url\": \"%s\", \"code\": %d, \"body\": null }", response.Request.URL.String(), response.StatusCode)
+		}
+	} else {
 		if buf.Len() > 0 {
 			context.Out.Printf("%s", buf)
 		}
-	})
+	}
+
 }
 
 func responseWorker(responses <-chan *http.Response, logger *logger.LeveledLogger, responseHandler func(*http.Response)) {

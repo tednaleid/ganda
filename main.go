@@ -6,7 +6,7 @@ import (
 	"github.com/tednaleid/ganda/execcontext"
 	"github.com/tednaleid/ganda/requests"
 	"github.com/tednaleid/ganda/responses"
-	"github.com/urfave/cli"
+	"gopkg.in/urfave/cli.v1"
 	"net/http"
 	"os"
 	"strings"
@@ -92,6 +92,11 @@ func createApp() *cli.App {
 			Name:        "no-color",
 			Usage:       "if flag is present, don't add color to success/warn messages",
 			Destination: &conf.NoColor,
+		},
+		cli.BoolFlag{
+			Name:        "json-envelope",
+			Usage:       "EXPERIMENTAL: if flag is present, emit result with JSON envelope with url, status, and body fields, assumes result is valid json",
+			Destination: &conf.JsonEnvelope,
 		},
 		cli.IntFlag{
 			Name:        "retry",

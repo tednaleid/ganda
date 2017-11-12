@@ -14,6 +14,7 @@ import (
 type Context struct {
 	RequestMethod          string
 	WriteFiles             bool
+	JsonEnvelope           bool
 	Insecure               bool
 	BaseDirectory          string
 	SubdirLength           int
@@ -34,6 +35,7 @@ func New(conf *config.Config) (*Context, error) {
 	context := Context{
 		ConnectTimeoutDuration: time.Duration(conf.ConnectTimeoutSeconds) * time.Second,
 		Insecure:               conf.Insecure,
+		JsonEnvelope:           conf.JsonEnvelope,
 		RequestMethod:          conf.RequestMethod,
 		BaseDirectory:          conf.BaseDirectory,
 		SubdirLength:           conf.SubdirLength,

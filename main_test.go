@@ -62,6 +62,23 @@ func TestRequestHappyPathHeadersAndResults(t *testing.T) {
 		"Response: 200 "+scaffold.BaseURL+"/bar\n")
 }
 
+func TestResponseHasJsonEnvelopeWhenRequested(t *testing.T) {
+	t.Parallel()
+	scaffold := NewScaffold(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "{ \"foo\": true }")
+	}))
+	defer scaffold.Server.Close()
+
+	context := newTestContext(scaffold, []string{scaffold.BaseURL + "/bar"})
+	context.JsonEnvelope = true
+
+	run(context)
+
+	assertOutput(t, scaffold,
+		"{ \"url\": \""+scaffold.BaseURL+"/bar\", \"code\": 200, \"body\": { \"foo\": true }\n }\n",
+		"Response: 200 "+scaffold.BaseURL+"/bar\n")
+}
+
 func TestErrorResponse(t *testing.T) {
 	t.Parallel()
 	scaffold := NewScaffold(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
