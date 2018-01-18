@@ -75,7 +75,7 @@ func TestResponseHasJsonEnvelopeWhenRequested(t *testing.T) {
 	run(context)
 
 	assertOutput(t, scaffold,
-		"{ \"url\": \""+scaffold.BaseURL+"/bar\", \"code\": 200, \"body\": { \"foo\": true }\n }\n",
+		"{ \"url\": \""+scaffold.BaseURL+"/bar\", \"code\": 200, \"length\": 16, \"body\": { \"foo\": true }\n }\n",
 		"Response: 200 "+scaffold.BaseURL+"/bar\n")
 }
 

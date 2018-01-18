@@ -56,10 +56,10 @@ func printResponse(response *http.Response, context *execcontext.Context) {
 
 	if (context.JsonEnvelope) {
 		if buf.Len() > 0 {
-			context.Out.Printf("{ \"url\": \"%s\", \"code\": %d, \"body\": %s }", response.Request.URL.String(), response.StatusCode, buf)
+			context.Out.Printf("{ \"url\": \"%s\", \"code\": %d, \"length\": %d, \"body\": %s }", response.Request.URL.String(), response.StatusCode, buf.Len(), buf)
 
 		} else {
-			context.Out.Printf("{ \"url\": \"%s\", \"code\": %d, \"body\": null }", response.Request.URL.String(), response.StatusCode)
+			context.Out.Printf("{ \"url\": \"%s\", \"code\": %d, \"length\": %d, \"body\": null }", response.Request.URL.String(), response.StatusCode, 0)
 		}
 	} else {
 		if buf.Len() > 0 {

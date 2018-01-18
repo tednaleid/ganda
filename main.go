@@ -95,7 +95,7 @@ func createApp() *cli.App {
 		},
 		cli.BoolFlag{
 			Name:        "json-envelope",
-			Usage:       "EXPERIMENTAL: if flag is present, emit result with JSON envelope with url, status, and body fields, assumes result is valid json",
+			Usage:       "EXPERIMENTAL: if flag is present, emit result with JSON envelope with url, status, length, and body fields, assumes result is valid json",
 			Destination: &conf.JsonEnvelope,
 		},
 		cli.IntFlag{

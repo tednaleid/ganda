@@ -43,22 +43,22 @@ to install in your `$GOPATH/bin` (which you want in your `$PATH`)
     $ ganda help
       NAME:
          ganda
-      
+
       USAGE:
          ganda [options] [file of urls]  OR  <urls on stdout> | ganda [options]
-      
+
       VERSION:
-         0.1.0
-      
+         0.1.3
+
       DESCRIPTION:
          Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel
-      
+
       AUTHOR:
          Ted Naleid <contact@naleid.com>
-      
+
       COMMANDS:
            help, h  Shows a list of commands or help for one command
-      
+
       GLOBAL OPTIONS:
          --output value, -o value         the output base directory to save downloaded files, if omitted will stream response bodies to stdout
          --request value, -X value        HTTP request method to use (default: "GET")
@@ -71,6 +71,7 @@ to install in your `$GOPATH/bin` (which you want in your `$PATH`)
          --insecure, -k                   if flag is present, skip verification of https certificates
          --silent, -s                     if flag is present, omit showing response code for each url only output response bodies
          --no-color                       if flag is present, don't add color to success/warn messages
+         --json-envelope                  EXPERIMENTAL: if flag is present, emit result with JSON envelope with url, status, length, and body fields, assumes result is valid json
          --retry value                    max number of retries on transient errors (5XX status codes/timeouts) to attempt (default: 0)
          --help, -h                       show help
          --version, -v                    print the version
