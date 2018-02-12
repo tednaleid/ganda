@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/execcontext"
 	"github.com/tednaleid/ganda/requests"
@@ -110,7 +109,7 @@ func createApp() *cli.App {
 		var err error
 
 		if appctx.Args().Present() && appctx.Args().First() != "help" && appctx.Args().First() != "h" {
-			conf.UrlFilename = appctx.Args().First()
+			conf.RequestFilename = appctx.Args().First()
 		}
 
 		conf.RequestHeaders, err = config.ConvertRequestHeaders(appctx.StringSlice("header"))
@@ -133,13 +132,13 @@ func createApp() *cli.App {
 }
 
 func run(context *execcontext.Context) {
-	requestsChannel := make(chan string)
+	requestsChannel := make(chan *http.Request)
 	responsesChannel := make(chan *http.Response)
 
 	requestWaitGroup := requests.StartRequestWorkers(requestsChannel, responsesChannel, context)
 	responseWaitGroup := responses.StartResponseWorkers(responsesChannel, context)
 
-	sendUrls(context.UrlScanner, requestsChannel, context.ThrottlePerSecond)
+	sendRequests(context, requestsChannel)
 
 	close(requestsChannel)
 	requestWaitGroup.Wait()
@@ -148,16 +147,33 @@ func run(context *execcontext.Context) {
 	responseWaitGroup.Wait()
 }
 
-func sendUrls(urlScanner *bufio.Scanner, requests chan<- string, throttleRequestsPerSecond int) {
+func sendRequests(context *execcontext.Context, requests chan<- *http.Request) {
+	requestScanner := context.RequestScanner
+	throttleRequestsPerSecond := context.ThrottlePerSecond
 	count := 0
 	throttle := time.Tick(time.Second)
 
-	for urlScanner.Scan() {
+	for requestScanner.Scan() {
 		count++
 		if count%throttleRequestsPerSecond == 0 {
 			<-throttle
 		}
-		url := strings.TrimSpace(urlScanner.Text())
-		requests <- url
+		request := createRequest(strings.TrimSpace(requestScanner.Text()), context.RequestMethod, context.RequestHeaders)
+		requests <- request
 	}
+}
+
+func createRequest(url string, requestMethod string, requestHeaders []config.RequestHeader) *http.Request {
+	request, err := http.NewRequest(requestMethod, url, nil)
+
+	if err != nil {
+		panic(err)
+	}
+
+	for _, header := range requestHeaders {
+		request.Header.Add(header.Key, header.Value)
+	}
+
+	request.Header.Add("connection", "keep-alive")
+	return request
 }

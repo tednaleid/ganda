@@ -3,7 +3,6 @@ package requests
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/execcontext"
 	"github.com/tednaleid/ganda/logger"
 	"net/http"
@@ -34,7 +33,7 @@ func NewHttpClient(context *execcontext.Context) *HttpClient {
 	}
 }
 
-func StartRequestWorkers(requests <-chan string, responses chan<- *http.Response, context *execcontext.Context) *sync.WaitGroup {
+func StartRequestWorkers(requests <-chan *http.Request, responses chan<- *http.Response, context *execcontext.Context) *sync.WaitGroup {
 	var requestWaitGroup sync.WaitGroup
 	requestWaitGroup.Add(context.RequestWorkers)
 
@@ -48,17 +47,16 @@ func StartRequestWorkers(requests <-chan string, responses chan<- *http.Response
 	return &requestWaitGroup
 }
 
-func requestWorker(context *execcontext.Context, requests <-chan string, responses chan<- *http.Response) {
+func requestWorker(context *execcontext.Context, requests <-chan *http.Request, responses chan<- *http.Response) {
 	httpClient := NewHttpClient(context)
-	for url := range requests {
-		request := createRequest(url, context.RequestMethod, context.RequestHeaders)
+	for request := range requests {
 
 		finalResponse, err := requestWithRetry(httpClient, request, 0)
 
 		if err == nil {
 			responses <- finalResponse
 		} else {
-			httpClient.Logger.LogError(err, url)
+			httpClient.Logger.LogError(err, request.URL.String())
 		}
 	}
 }
@@ -83,19 +81,4 @@ func requestWithRetry(httpClient *HttpClient, request *http.Request, previouslyF
 	}
 
 	return response, err
-}
-
-func createRequest(url string, requestMethod string, requestHeaders []config.RequestHeader) *http.Request {
-	request, err := http.NewRequest(requestMethod, url, nil)
-
-	if err != nil {
-		panic(err)
-	}
-
-	for _, header := range requestHeaders {
-		request.Header.Add(header.Key, header.Value)
-	}
-
-	request.Header.Add("connection", "keep-alive")
-	return request
 }

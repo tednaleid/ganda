@@ -26,7 +26,7 @@ type Context struct {
 	Logger                 *logger.LeveledLogger
 	Out                    *log.Logger
 	RequestHeaders         []config.RequestHeader
-	UrlScanner             *bufio.Scanner
+	RequestScanner         *bufio.Scanner
 }
 
 func New(conf *config.Config) (*Context, error) {
@@ -59,7 +59,7 @@ func New(conf *config.Config) (*Context, error) {
 		context.ResponseWorkers = context.RequestWorkers
 	}
 
-	context.UrlScanner, err = createUrlScanner(conf.UrlFilename, context.Logger)
+	context.RequestScanner, err = createRequestScanner(conf.RequestFilename, context.Logger)
 
 	if len(conf.BaseDirectory) > 0 {
 		context.WriteFiles = true
@@ -85,10 +85,10 @@ func createLeveledLogger(conf *config.Config) *logger.LeveledLogger {
 	return logger.NewLeveledLogger(stdErrLogger)
 }
 
-func createUrlScanner(urlFilename string, logger *logger.LeveledLogger) (*bufio.Scanner, error) {
-	if len(urlFilename) > 0 {
-		logger.Info("Opening file of urls at: %s", urlFilename)
-		return urlFileScanner(urlFilename)
+func createRequestScanner(requestFilename string, logger *logger.LeveledLogger) (*bufio.Scanner, error) {
+	if len(requestFilename) > 0 {
+		logger.Info("Opening file of requests at: %s", requestFilename)
+		return requestFileScanner(requestFilename)
 	}
 	return urlStdinScanner(), nil
 }
@@ -97,11 +97,11 @@ func urlStdinScanner() *bufio.Scanner {
 	return bufio.NewScanner(os.Stdin)
 }
 
-func urlFileScanner(urlFilename string) (*bufio.Scanner, error) {
-	if _, err := os.Stat(urlFilename); os.IsNotExist(err) {
-		return nil, fmt.Errorf("Unable to open specified file: %s", urlFilename)
+func requestFileScanner(requestFilename string) (*bufio.Scanner, error) {
+	if _, err := os.Stat(requestFilename); os.IsNotExist(err) {
+		return nil, fmt.Errorf("Unable to open specified file: %s", requestFilename)
 	}
 
-	file, err := os.Open(urlFilename)
+	file, err := os.Open(requestFilename)
 	return bufio.NewScanner(file), err
 }

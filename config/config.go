@@ -20,7 +20,7 @@ type Config struct {
 	ThrottlePerSecond     int
 	Retries               int
 	RequestHeaders        []RequestHeader
-	UrlFilename           string
+	RequestFilename       string
 }
 
 func New() *Config {

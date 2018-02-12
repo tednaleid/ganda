@@ -235,7 +235,7 @@ func newTestContext(scaffold *Scaffold, expectedURLPaths []string) *execcontext.
 		RequestWorkers:    1,
 		ResponseWorkers:   1,
 		ThrottlePerSecond: math.MaxInt32,
-		UrlScanner:        urlsScanner(expectedURLPaths),
+		RequestScanner:    urlsScanner(expectedURLPaths),
 		Out:               scaffold.StandardOutMock,
 		Logger:            logger.NewPlainLeveledLogger(scaffold.LoggerMock),
 	}
