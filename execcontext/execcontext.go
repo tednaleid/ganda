@@ -17,6 +17,7 @@ type Context struct {
 	JsonEnvelope           bool
 	Insecure               bool
 	BaseDirectory          string
+	DataTemplate           string
 	SubdirLength           int
 	RequestWorkers         int
 	ResponseWorkers        int
@@ -38,6 +39,7 @@ func New(conf *config.Config) (*Context, error) {
 		JsonEnvelope:           conf.JsonEnvelope,
 		RequestMethod:          conf.RequestMethod,
 		BaseDirectory:          conf.BaseDirectory,
+		DataTemplate:           conf.DataTemplate,
 		SubdirLength:           conf.SubdirLength,
 		RequestWorkers:         conf.RequestWorkers,
 		ResponseWorkers:        conf.ResponseWorkers,

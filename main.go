@@ -3,13 +3,12 @@ package main
 import (
 	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/execcontext"
+	"github.com/tednaleid/ganda/parser"
 	"github.com/tednaleid/ganda/requests"
 	"github.com/tednaleid/ganda/responses"
 	"gopkg.in/urfave/cli.v1"
 	"net/http"
 	"os"
-	"strings"
-	"time"
 )
 
 // overridden at build time with `-ldflags "-X main.version=X.X.X"`
@@ -28,8 +27,8 @@ func createApp() *cli.App {
 	app.Author = "Ted Naleid"
 	app.Email = "contact@naleid.com"
 	app.Usage = ""
-	app.UsageText = "ganda [options] [file of urls]  OR  <urls on stdout> | ganda [options]"
-	app.Description = "Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel"
+	app.UsageText = "ganda [options] [file of urls/requests]  OR  <urls/requests on stdout> | ganda [options]"
+	app.Description = "Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel."
 	app.Version = version
 
 	app.Flags = []cli.Flag{
@@ -47,6 +46,11 @@ func createApp() *cli.App {
 		cli.StringSliceFlag{
 			Name:  "header, H",
 			Usage: "headers to send with every request, can be used multiple times (gzip and keep-alive are already there)",
+		},
+		cli.StringFlag{
+			Name:        "data-template, d",
+			Usage:       "template string (or literal string) for the body, can use %s placeholders that will be replaced by fields 1..N from the input (all fields on a line after the url), '%%' can be used to insert a single percent symbol",
+			Destination: &conf.DataTemplate,
 		},
 		cli.IntFlag{
 			Name:        "workers, W",
@@ -138,42 +142,11 @@ func run(context *execcontext.Context) {
 	requestWaitGroup := requests.StartRequestWorkers(requestsChannel, responsesChannel, context)
 	responseWaitGroup := responses.StartResponseWorkers(responsesChannel, context)
 
-	sendRequests(context, requestsChannel)
+	parser.SendRequests(context, requestsChannel)
 
 	close(requestsChannel)
 	requestWaitGroup.Wait()
 
 	close(responsesChannel)
 	responseWaitGroup.Wait()
-}
-
-func sendRequests(context *execcontext.Context, requests chan<- *http.Request) {
-	requestScanner := context.RequestScanner
-	throttleRequestsPerSecond := context.ThrottlePerSecond
-	count := 0
-	throttle := time.Tick(time.Second)
-
-	for requestScanner.Scan() {
-		count++
-		if count%throttleRequestsPerSecond == 0 {
-			<-throttle
-		}
-		request := createRequest(strings.TrimSpace(requestScanner.Text()), context.RequestMethod, context.RequestHeaders)
-		requests <- request
-	}
-}
-
-func createRequest(url string, requestMethod string, requestHeaders []config.RequestHeader) *http.Request {
-	request, err := http.NewRequest(requestMethod, url, nil)
-
-	if err != nil {
-		panic(err)
-	}
-
-	for _, header := range requestHeaders {
-		request.Header.Add(header.Key, header.Value)
-	}
-
-	request.Header.Add("connection", "keep-alive")
-	return request
 }
