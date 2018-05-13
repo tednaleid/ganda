@@ -54,7 +54,7 @@ func printResponse(response *http.Response, context *execcontext.Context) {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(response.Body)
 
-	if (context.JsonEnvelope) {
+	if context.JsonEnvelope {
 		if buf.Len() > 0 {
 			context.Out.Printf("{ \"url\": \"%s\", \"code\": %d, \"length\": %d, \"body\": %s }", response.Request.URL.String(), response.StatusCode, buf.Len(), buf)
 

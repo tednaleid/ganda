@@ -136,8 +136,9 @@ func createApp() *cli.App {
 }
 
 func run(context *execcontext.Context) {
-	requestsChannel := make(chan *http.Request)
-	responsesChannel := make(chan *http.Response)
+	bufferSize := 256
+	requestsChannel := make(chan *http.Request, bufferSize)
+	responsesChannel := make(chan *http.Response, bufferSize)
 
 	requestWaitGroup := requests.StartRequestWorkers(requestsChannel, responsesChannel, context)
 	responseWaitGroup := responses.StartResponseWorkers(responsesChannel, context)
