@@ -24,7 +24,7 @@ func SendRequests(context *execcontext.Context, requests chan<- *http.Request) {
 			<-throttle
 		}
 
-		if (context.DataTemplate == "") {
+		if context.DataTemplate == "" {
 			url, body = ParseUrlAndOptionalBody(requestScanner.Text())
 		} else {
 			url, body = ParseTemplatedInput(requestScanner.Text(), context.DataTemplate)
@@ -40,7 +40,7 @@ func ParseUrlAndOptionalBody(input string) (string, io.Reader) {
 
 	url := tokens[0]
 
-	if (len(tokens) == 1) {
+	if len(tokens) == 1 {
 		return url, nil // no body, just an url
 	}
 
@@ -54,7 +54,7 @@ func ParseTemplatedInput(input string, dataTemplate string) (string, io.Reader){
 
 	url := tokens[0]
 
-	if (len(tokens) == 1) {
+	if len(tokens) == 1 {
 		return url, strings.NewReader(dataTemplate) // just an url, static body
 	}
 
