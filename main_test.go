@@ -8,6 +8,7 @@ import (
 	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/execcontext"
 	"github.com/tednaleid/ganda/logger"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -22,7 +23,7 @@ type Scaffold struct {
 	BaseURL           string
 	StandardOutBuffer *bytes.Buffer
 	LogBuffer         *bytes.Buffer
-	StandardOutMock   *log.Logger
+	StandardOutMock   io.Writer
 	LoggerMock        *log.Logger
 }
 
@@ -36,7 +37,7 @@ func NewScaffold(handler http.Handler) *Scaffold {
 		LogBuffer:         new(bytes.Buffer),
 	}
 
-	scaffold.StandardOutMock = log.New(scaffold.StandardOutBuffer, "", 0)
+	scaffold.StandardOutMock = scaffold.StandardOutBuffer
 	scaffold.LoggerMock = log.New(scaffold.LogBuffer, "", 0)
 
 	return &scaffold
@@ -49,7 +50,7 @@ func TestRequestHappyPathHeadersAndResults(t *testing.T) {
 		assert.Equal(t, r.Header["User-Agent"][0], "Go-http-client/1.1", "User-Agent header")
 		assert.Equal(t, r.Header["Connection"][0], "keep-alive", "Connection header")
 		assert.Equal(t, r.Header["Accept-Encoding"][0], "gzip", "Accept-Encoding header")
-		fmt.Fprintln(w, "Hello", r.URL.Path)
+		fmt.Fprint(w, "Hello ", r.URL.Path)
 	}))
 	defer scaffold.Server.Close()
 
@@ -65,7 +66,7 @@ func TestRequestHappyPathHeadersAndResults(t *testing.T) {
 func TestResponseHasJsonEnvelopeWhenRequested(t *testing.T) {
 	t.Parallel()
 	scaffold := NewScaffold(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "{ \"foo\": true }")
+		fmt.Fprint(w, "{ \"foo\": true }")
 	}))
 	defer scaffold.Server.Close()
 
@@ -75,7 +76,7 @@ func TestResponseHasJsonEnvelopeWhenRequested(t *testing.T) {
 	run(context)
 
 	assertOutput(t, scaffold,
-		"{ \"url\": \""+scaffold.BaseURL+"/bar\", \"code\": 200, \"length\": 16, \"body\": { \"foo\": true }\n }\n",
+		"{ \"url\": \""+scaffold.BaseURL+"/bar\", \"code\": 200, \"length\": 15, \"body\": { \"foo\": true } }\n",
 		"Response: 200 "+scaffold.BaseURL+"/bar\n")
 }
 
@@ -99,7 +100,7 @@ func TestTimeout(t *testing.T) {
 	t.Parallel()
 	scaffold := NewScaffold(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(10 * time.Millisecond)
-		fmt.Fprintln(w, "Should not get this, should time out first")
+		fmt.Fprint(w, "Should not get this, should time out first")
 	}))
 	defer scaffold.Server.Close()
 
@@ -122,7 +123,7 @@ func TestRetryEnabledShouldRetry5XX(t *testing.T) {
 		if requests == 1 {
 			w.WriteHeader(500)
 		} else {
-			fmt.Fprintln(w, "Retried request")
+			fmt.Fprint(w, "Retried request")
 		}
 	}))
 	defer scaffold.Server.Close()
@@ -189,7 +190,7 @@ func TestRetryEnabledShouldRetryTimeout(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 		}
 		requestCount++
-		fmt.Fprintln(w, "Request", requestCount)
+		fmt.Fprint(w, "Request ", requestCount)
 	}))
 	defer scaffold.Server.Close()
 
@@ -212,7 +213,7 @@ func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {
 		// turns to uppercase versions for header key when transmitted
 		assert.Equal(t, r.Header["Foo"][0], "bar", "foo header")
 		assert.Equal(t, r.Header["X-Baz"][0], "qux", "baz header")
-		fmt.Fprintln(w, "Hello", r.URL.Path)
+		fmt.Fprint(w, "Hello ", r.URL.Path)
 	}))
 	defer scaffold.Server.Close()
 
@@ -242,8 +243,10 @@ func newTestContext(scaffold *Scaffold, expectedURLPaths []string) *execcontext.
 }
 
 func assertOutput(t *testing.T, scaffold *Scaffold, expectedStandardOut string, expectedLog string) {
-	assert.Equal(t, expectedStandardOut, scaffold.StandardOutBuffer.String(), "expected stdout")
-	assert.Equal(t, expectedLog, scaffold.LogBuffer.String(), "expected logger stderr")
+	actualOut := scaffold.StandardOutBuffer.String()
+	assert.Equal(t, expectedStandardOut, actualOut, "expected stdout")
+	actualLog := scaffold.LogBuffer.String()
+	assert.Equal(t, expectedLog, actualLog, "expected logger stderr")
 }
 
 func urlsScanner(urls []string) *bufio.Scanner {
