@@ -9,12 +9,14 @@ import (
 	"math"
 	"os"
 	"time"
+	"io"
 )
 
 type Context struct {
 	RequestMethod          string
 	WriteFiles             bool
 	JsonEnvelope           bool
+	HashBody               bool
 	Insecure               bool
 	BaseDirectory          string
 	DataTemplate           string
@@ -25,7 +27,7 @@ type Context struct {
 	ThrottlePerSecond      int
 	Retries                int
 	Logger                 *logger.LeveledLogger
-	Out                    *log.Logger
+	Out                    io.Writer
 	RequestHeaders         []config.RequestHeader
 	RequestScanner         *bufio.Scanner
 }
@@ -37,6 +39,7 @@ func New(conf *config.Config) (*Context, error) {
 		ConnectTimeoutDuration: time.Duration(conf.ConnectTimeoutSeconds) * time.Second,
 		Insecure:               conf.Insecure,
 		JsonEnvelope:           conf.JsonEnvelope,
+		HashBody:               conf.HashBody,
 		RequestMethod:          conf.RequestMethod,
 		BaseDirectory:          conf.BaseDirectory,
 		DataTemplate:           conf.DataTemplate,
@@ -45,7 +48,7 @@ func New(conf *config.Config) (*Context, error) {
 		ResponseWorkers:        conf.ResponseWorkers,
 		RequestHeaders:         conf.RequestHeaders,
 		ThrottlePerSecond:      math.MaxInt32,
-		Out:                    log.New(os.Stdout, "", 0),
+		Out:                    os.Stdout,
 		Logger:                 createLeveledLogger(conf),
 	}
 

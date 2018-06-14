@@ -98,8 +98,13 @@ func createApp() *cli.App {
 		},
 		cli.BoolFlag{
 			Name:        "json-envelope",
-			Usage:       "EXPERIMENTAL: if flag is present, emit result with JSON envelope with url, status, length, and body fields, assumes result is valid json",
+			Usage:       "EXPERIMENTAL: emit result with JSON envelope with url, status, length, and body fields, assumes result is valid json",
 			Destination: &conf.JsonEnvelope,
+		},
+		cli.BoolFlag{
+			Name:        "hash-body",
+			Usage:       "EXPERIMENTAL: instead of emitting full body in JSON, emit the SHA256 of the bytes of the body, useful for checksums, only has meaning with --json-envelope flag",
+			Destination: &conf.HashBody,
 		},
 		cli.IntFlag{
 			Name:        "retry",
@@ -136,9 +141,8 @@ func createApp() *cli.App {
 }
 
 func run(context *execcontext.Context) {
-	bufferSize := 256
-	requestsChannel := make(chan *http.Request, bufferSize)
-	responsesChannel := make(chan *http.Response, bufferSize)
+	requestsChannel := make(chan *http.Request)
+	responsesChannel := make(chan *http.Response)
 
 	requestWaitGroup := requests.StartRequestWorkers(requestsChannel, responsesChannel, context)
 	responseWaitGroup := responses.StartResponseWorkers(responsesChannel, context)
