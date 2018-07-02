@@ -8,7 +8,7 @@ By default, it will echo all response bodies to standard out but can optionally 
 
 Given a file with a list of IDs in it, you could do something like:
 
-    cat id_list.txt | awk '{print "https://api.example.com/resource/%s?apikey=foo\n", $1}' | ganda
+    cat id_list.txt | awk '{printf "https://api.example.com/resource/%s?apikey=foo\n", $1}' | ganda
     
 and that will pipe a stream of urls into `ganda` in the format `https://api.example.com/resource/<ID>?apikey=foo`.
 
