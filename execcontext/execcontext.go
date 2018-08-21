@@ -17,6 +17,7 @@ type Context struct {
 	WriteFiles             bool
 	JsonEnvelope           bool
 	HashBody               bool
+	DiscardBody            bool
 	Insecure               bool
 	BaseDirectory          string
 	DataTemplate           string
@@ -40,6 +41,7 @@ func New(conf *config.Config) (*Context, error) {
 		Insecure:               conf.Insecure,
 		JsonEnvelope:           conf.JsonEnvelope,
 		HashBody:               conf.HashBody,
+		DiscardBody:            conf.DiscardBody,
 		RequestMethod:          conf.RequestMethod,
 		BaseDirectory:          conf.BaseDirectory,
 		DataTemplate:           conf.DataTemplate,

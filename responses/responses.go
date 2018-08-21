@@ -54,11 +54,18 @@ type emitResponseFn func(response *http.Response, out io.Writer)
 
 func determineEmitResponseFn(context *execcontext.Context) emitResponseFn {
 	if context.JsonEnvelope {
-		if context.HashBody {
+		if context.DiscardBody {
+			return emitJsonMessagesWithoutBody
+		} else if context.HashBody {
 			return emitJsonMessageSha256
 		}
 		return emitJsonMessages
 	}
+
+	if context.DiscardBody {
+		return emitNothing
+	}
+
 	return emitRawMessages
 }
 
@@ -73,6 +80,10 @@ func emitRawMessages(response *http.Response, out io.Writer) {
 	}
 }
 
+func emitNothing(response *http.Response, out io.Writer) {
+	response.Body.Close()
+}
+
 func emitJsonMessages(response *http.Response, out io.Writer) {
 	defer response.Body.Close()
 	buf := new(bytes.Buffer)
@@ -83,6 +94,11 @@ func emitJsonMessages(response *http.Response, out io.Writer) {
 	} else {
 		fmt.Fprintf(out, "{ \"url\": \"%s\", \"code\": %d, \"length\": %d, \"body\": null }\n", response.Request.URL.String(), response.StatusCode, 0)
 	}
+}
+
+func emitJsonMessagesWithoutBody(response *http.Response, out io.Writer) {
+	response.Body.Close()
+	fmt.Fprintf(out, "{ \"url\": \"%s\", \"code\": %d}\n", response.Request.URL.String(), response.StatusCode)
 }
 
 func emitJsonMessageSha256(response *http.Response, out io.Writer) {

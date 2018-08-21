@@ -106,6 +106,11 @@ func createApp() *cli.App {
 			Usage:       "EXPERIMENTAL: instead of emitting full body in JSON, emit the SHA256 of the bytes of the body, useful for checksums, only has meaning with --json-envelope flag",
 			Destination: &conf.HashBody,
 		},
+		cli.BoolFlag{
+			Name:        "discard-body",
+			Usage:       "EXPERIMENTAL: instead of emitting full body, just discard it",
+			Destination: &conf.DiscardBody,
+		},
 		cli.IntFlag{
 			Name:        "retry",
 			Usage:       "max number of retries on transient errors (5XX status codes/timeouts) to attempt",

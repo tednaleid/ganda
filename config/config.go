@@ -12,6 +12,7 @@ type Config struct {
 	NoColor               bool
 	JsonEnvelope          bool
 	HashBody              bool
+	DiscardBody           bool
 	BaseDirectory         string
 	DataTemplate          string
 	RequestWorkers        int
@@ -33,6 +34,7 @@ func New() *Config {
 		NoColor:               false,
 		JsonEnvelope:          false,
 		HashBody:              false,
+		DiscardBody:           false,
 		DataTemplate:          "",
 		RequestWorkers:        30,
 		SubdirLength:          0,
