@@ -18,6 +18,8 @@ Alternatively, if you have a file full of urls (one per line), you can just tell
 
 If you give `ganda` a `-o <directory name>` parameter, it will save the body of each in a separate file inside `<directory name>`.  If you want a single file, just pipe stdout the normal way `... | ganda > result.txt`.
 
+For many more examples, see ["Using HTTP APIs on the Command Line - Part 3 - ganda"](http://www.naleid.com/2018/04/04/using-http-apis-on-the-command-line-3-ganda.html).
+
 # Installing
 
 You currently have 3 options:
