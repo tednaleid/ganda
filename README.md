@@ -2,7 +2,7 @@
 
 Ganda lets you make HTTP/HTTPS requests to hundreds to millions of URLs in just a few minutes.
 
-It's designed with the unix philosiphy of ["do one thing well"](https://en.wikipedia.org/wiki/Unix_philosophy#Do_One_Thing_and_Do_It_Well) and wants to be used in a chain of command line pipes to make its requests in parallel. 
+It's designed with the unix philosophy of ["do one thing well"](https://en.wikipedia.org/wiki/Unix_philosophy#Do_One_Thing_and_Do_It_Well) and wants to be used in a chain of command line pipes to make its requests in parallel. 
 
 By default, it will echo all response bodies to standard out but can optionally save the results of each request in a directory for later analysis.
 
