@@ -36,7 +36,7 @@ func New() *Config {
 		HashBody:              false,
 		DiscardBody:           false,
 		DataTemplate:          "",
-		RequestWorkers:        30,
+		RequestWorkers:        1,
 		SubdirLength:          0,
 		ConnectTimeoutSeconds: 10,
 		ThrottlePerSecond:     math.MaxInt32,

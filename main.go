@@ -54,7 +54,7 @@ func createApp() *cli.App {
 		},
 		cli.IntFlag{
 			Name:        "workers, W",
-			Usage:       "number of concurrent workers that will be making requests",
+			Usage:       "number of concurrent workers that will be making requests, increase this for more requests in parallel",
 			Value:       conf.RequestWorkers,
 			Destination: &conf.RequestWorkers,
 		},

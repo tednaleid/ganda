@@ -59,7 +59,7 @@ func New(conf *config.Config) (*Context, error) {
 	}
 
 	if context.RequestWorkers <= 0 {
-		context.RequestWorkers = 30
+		context.RequestWorkers = 1
 	}
 
 	if context.ResponseWorkers <= 0 {
