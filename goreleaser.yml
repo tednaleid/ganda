@@ -1,10 +1,11 @@
-brew:
-  github:
-    owner: tednaleid
-    name: homebrew-ganda
+brews:
+  -
+    github:
+      owner: tednaleid
+      name: homebrew-ganda
 
-  folder: Formula
+    folder: Formula
 
-  homepage: "https://github.com/tednaleid/ganda"
+    homepage: "https://github.com/tednaleid/ganda"
 
-  description: "fast cmd-line app that quickly request millions of urls and save/echo the results"
+    description: "fast cmd-line app that quickly request millions of urls and save/echo the results"
