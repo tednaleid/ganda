@@ -112,7 +112,7 @@ func TestTimeout(t *testing.T) {
 
 	assertOutput(t, scaffold,
 		"",
-		url+" Error: Get "+url+": net/http: request canceled (Client.Timeout exceeded while awaiting headers)\n")
+		url+" Error: Get \""+url+"\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n")
 }
 
 func TestRetryEnabledShouldRetry5XX(t *testing.T) {
@@ -204,7 +204,7 @@ func TestRetryEnabledShouldRetryTimeout(t *testing.T) {
 	assert.Equal(t, 2, requestCount, "expected a second request")
 	assertOutput(t, scaffold,
 		"Request 2\n",
-		scaffold.BaseURL+"/bar (1) Error: Get "+scaffold.BaseURL+"/bar: net/http: request canceled (Client.Timeout exceeded while awaiting headers)\nResponse: 200 "+scaffold.BaseURL+"/bar\n")
+		scaffold.BaseURL+"/bar (1) Error: Get \""+scaffold.BaseURL+"/bar\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\nResponse: 200 "+scaffold.BaseURL+"/bar\n")
 }
 
 func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {

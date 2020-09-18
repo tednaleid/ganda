@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/logger"
+	"io"
 	"log"
 	"math"
 	"os"
 	"time"
-	"io"
 )
 
 type Context struct {
@@ -100,8 +100,12 @@ func createRequestScanner(requestFilename string, logger *logger.LeveledLogger) 
 	return urlStdinScanner(), nil
 }
 
+const MaxTokenSize = 1024 * 1024 * 1024
+
 func urlStdinScanner() *bufio.Scanner {
-	return bufio.NewScanner(os.Stdin)
+	s := bufio.NewScanner(os.Stdin)
+	s.Buffer(make([]byte, 1024*2), MaxTokenSize)
+	return s
 }
 
 func requestFileScanner(requestFilename string) (*bufio.Scanner, error) {

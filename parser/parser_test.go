@@ -23,7 +23,7 @@ type parseExpectation struct {
 var parseStaticBodyList = []parseExpectation {
 	{"", "", "", ""},
 	{"http://example.com", "", "http://example.com", ""},
-	{"http://example.com 123", "", "http://example.com", "123"},
+	{"http://example.com 123 456", "", "http://example.com", "123 456"},
 	{"http://example.com {\"foo\": 123}", "", "http://example.com", "{\"foo\": 123}"},
 	{"http://example.com", "%s", "http://example.com", "%s"},
 	{"http://example.com 123 456", "%s %s", "http://example.com", "123 456"},

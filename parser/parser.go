@@ -1,13 +1,13 @@
 package parser
 
 import (
+	"fmt"
+	"github.com/tednaleid/ganda/config"
+	"github.com/tednaleid/ganda/execcontext"
 	"io"
 	"net/http"
-	"github.com/tednaleid/ganda/config"
-	"time"
-	"github.com/tednaleid/ganda/execcontext"
 	"strings"
-	"fmt"
+	"time"
 )
 
 func SendRequests(context *execcontext.Context, requests chan<- *http.Request) {
@@ -25,7 +25,8 @@ func SendRequests(context *execcontext.Context, requests chan<- *http.Request) {
 		}
 
 		if context.DataTemplate == "" {
-			url, body = ParseUrlAndOptionalBody(requestScanner.Text())
+			var text = requestScanner.Text()
+			url, body = ParseUrlAndOptionalBody(text)
 		} else {
 			url, body = ParseTemplatedInput(requestScanner.Text(), context.DataTemplate)
 		}
