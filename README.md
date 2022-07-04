@@ -50,7 +50,7 @@ to install in your `$GOPATH/bin` (which you want in your `$PATH`)
        ganda [options] [file of urls/requests]  OR  <urls/requests on stdout> | ganda [options]
 
     VERSION:
-       1.7
+       0.1.10
 
     DESCRIPTION:
        Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel.
@@ -92,7 +92,7 @@ Those urls are then piped into `ganda` and saved in a directory called `out` in 
     awk '{printf "https://en.wikipedia.org/w/api.php?action=query&titles=%s&prop=revisions&rvprop=content&format=json\n", $1}' |\
     ganda -o out --subdir-length 2
     
-Output (shows hte HTTP status code of 200 OK for each along with the resulting output file that each was saved at):
+Output (shows the HTTP status code of 200 OK for each along with the resulting output file that each was saved at):
 
     Response:  200 https://en.wikipedia.org/w/api.php?action=query&titles=aam&prop=revisions&rvprop=content&format=json -> out/95/https-en-wikipedia-org-w-api-php-action-query-titles-aam-prop-revisions-rvprop-content-format-json
     Response:  200 https://en.wikipedia.org/w/api.php?action=query&titles=A&prop=revisions&rvprop=content&format=json -> out/71/https-en-wikipedia-org-w-api-php-action-query-titles-A-prop-revisions-rvprop-content-format-json
