@@ -35,7 +35,7 @@ brew install ganda
 3. Compile from source with golang:
 
 ```
-go get -u github.com/tednaleid/ganda
+go install github.com/tednaleid/ganda@latest
 ```
 
 to install in your `$GOPATH/bin` (which you want in your `$PATH`)
