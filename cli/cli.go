@@ -8,7 +8,17 @@ import (
 	"io"
 )
 
-func SetupCmd(version string, in io.Reader, err io.Writer, out io.Writer, runBlock func(context *execcontext.Context)) cli.Command {
+type BuildInfo struct {
+	Version string
+	Commit  string
+	Date    string
+}
+
+func (buildInfo BuildInfo) ToString() string {
+	return buildInfo.Version + " " + buildInfo.Commit + " " + buildInfo.Date
+}
+
+func SetupCmd(buildInfo BuildInfo, in io.Reader, err io.Writer, out io.Writer, runBlock func(context *execcontext.Context)) cli.Command {
 	conf := config.New()
 	var context *execcontext.Context
 
@@ -19,7 +29,7 @@ func SetupCmd(version string, in io.Reader, err io.Writer, out io.Writer, runBlo
 		},
 		UsageText:   "ganda [options] [file of urls/requests]  OR  <urls/requests on stdout> | ganda [options]",
 		Description: "Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel.",
-		Version:     version,
+		Version:     buildInfo.ToString(),
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "output",

@@ -12,8 +12,13 @@ import (
 	"os"
 )
 
-// overridden at build time with `-ldflags "-X main.version=X.X.X"`
-var version = "main"
+// overridden at build time with `-ldflags`, ex:
+// go build -ldflags "-X main.version=0.2.0 -X main.commit=123abc -X main.date=2023-12-20"
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
 
 func main() {
 	runCommand(os.Args, os.Stdin, os.Stderr, os.Stdout)
@@ -21,7 +26,7 @@ func main() {
 
 // allows us to mock out the args and input/output streams for testing
 func runCommand(args []string, in io.Reader, err io.Writer, out io.Writer) error {
-	command := cli.SetupCmd(version, in, err, out, processRequests)
+	command := cli.SetupCmd(cli.BuildInfo{Version: version, Commit: commit, Date: date}, in, err, out, processRequests)
 	return command.Run(ctx.Background(), args)
 }
 
