@@ -33,7 +33,7 @@ type Context struct {
 	RequestScanner         *bufio.Scanner
 }
 
-func New(conf *config.Config) (*Context, error) {
+func New(conf *config.Config, in io.Reader, stderr io.Writer, stdout io.Writer) (*Context, error) {
 	var err error
 
 	context := Context{
@@ -50,8 +50,8 @@ func New(conf *config.Config) (*Context, error) {
 		ResponseWorkers:        conf.ResponseWorkers,
 		RequestHeaders:         conf.RequestHeaders,
 		ThrottlePerSecond:      math.MaxInt32,
-		Out:                    os.Stdout,
-		Logger:                 createLeveledLogger(conf),
+		Out:                    stdout,
+		Logger:                 createLeveledLogger(conf, stderr),
 	}
 
 	if conf.ThrottlePerSecond > 0 {
@@ -77,13 +77,13 @@ func New(conf *config.Config) (*Context, error) {
 	return &context, err
 }
 
-func createLeveledLogger(conf *config.Config) *logger.LeveledLogger {
+func createLeveledLogger(conf *config.Config, stderr io.Writer) *logger.LeveledLogger {
 
 	if conf.Silent {
 		return logger.NewSilentLogger()
 	}
 
-	stdErrLogger := log.New(os.Stderr, "", 0)
+	stdErrLogger := log.New(stderr, "", 0)
 
 	if conf.NoColor {
 		return logger.NewPlainLeveledLogger(stdErrLogger)

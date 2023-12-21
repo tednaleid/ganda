@@ -18,7 +18,7 @@ func (buildInfo BuildInfo) ToString() string {
 	return buildInfo.Version + " " + buildInfo.Commit + " " + buildInfo.Date
 }
 
-func SetupCmd(buildInfo BuildInfo, in io.Reader, err io.Writer, out io.Writer, runBlock func(context *execcontext.Context)) cli.Command {
+func SetupCommand(buildInfo BuildInfo, in io.Reader, stderr io.Writer, stdout io.Writer, runBlock func(context *execcontext.Context)) cli.Command {
 	conf := config.New()
 	var context *execcontext.Context
 
@@ -30,6 +30,9 @@ func SetupCmd(buildInfo BuildInfo, in io.Reader, err io.Writer, out io.Writer, r
 		UsageText:   "ganda [options] [file of urls/requests]  OR  <urls/requests on stdout> | ganda [options]",
 		Description: "Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel.",
 		Version:     buildInfo.ToString(),
+		Reader:      in,
+		Writer:      stdout,
+		ErrWriter:   stderr,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "output",
@@ -54,14 +57,14 @@ func SetupCmd(buildInfo BuildInfo, in io.Reader, err io.Writer, out io.Writer, r
 				Usage:       "template string (or literal string) for the body, can use %s placeholders that will be replaced by fields 1..N from the input (all fields on a line after the url), '%%' can be used to insert a single percent symbol",
 				Destination: &conf.DataTemplate,
 			},
-			&Int32Flag{
+			&WorkerFlag{
 				Name:        "workers",
 				Aliases:     []string{"W"},
 				Usage:       "number of concurrent workers that will be making requests, increase this for more requests in parallel",
 				Value:       conf.RequestWorkers,
 				Destination: &conf.RequestWorkers,
 			},
-			&Int32Flag{
+			&WorkerFlag{
 				Name:        "response-workers",
 				Usage:       "number of concurrent workers that will be processing responses, if not specified will be same as --workers",
 				Destination: &conf.ResponseWorkers,
@@ -139,7 +142,7 @@ func SetupCmd(buildInfo BuildInfo, in io.Reader, err io.Writer, out io.Writer, r
 				return err
 			}
 
-			context, err = execcontext.New(conf)
+			context, err = execcontext.New(conf, in, stderr, stdout)
 
 			return err
 		},

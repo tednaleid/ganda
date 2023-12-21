@@ -4,50 +4,77 @@ import (
 	"bytes"
 	"context"
 	"github.com/stretchr/testify/assert"
+	"github.com/tednaleid/ganda/execcontext"
+	"math"
+	"strconv"
 	"strings"
 	"testing"
 )
 
-func TestCliParsing(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		args     []string
-		expected string
-	}{
-		{
-			name:     "default rotation",
-			input:    "IBM",
-			args:     []string{"rot"},
-			expected: "VOZ\n",
-		},
-		{
-			name:     "custom rotation, long flag",
-			input:    "IBM",
-			args:     []string{"rot", "--rotate", "25"},
-			expected: "HAL\n",
-		},
-		{
-			name:     "custom rotation, short flag",
-			input:    "IBM",
-			args:     []string{"rot", "--r", "1"},
-			expected: "JCN\n",
-		},
-	}
+var testBuildInfo = BuildInfo{Version: "testing", Commit: "123abc", Date: "2023-12-20"}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			output := runTestApp(tt.args, tt.input)
-			assert.Equal(t, tt.expected, output)
-		})
-	}
+type runResults struct {
+	stderr  string
+	stdout  string
+	context *execcontext.Context
 }
 
-func runTestApp(args []string, input string) string {
-	in := strings.NewReader(input)
+func parseArgs(args []string) runResults {
+	in := strings.NewReader("")
+	err := new(bytes.Buffer)
 	out := new(bytes.Buffer)
+	var resultContext *execcontext.Context
 
-	cmd := setupCmd(in, out)
-	cmd.Run(context.Background(), args)
-	return out.String()
+	processRequests := func(context *execcontext.Context) {
+		resultContext = context
+	}
+
+	command := SetupCommand(testBuildInfo, in, err, out, processRequests)
+	command.Run(context.Background(), args)
+	return runResults{err.String(), out.String(), resultContext}
+}
+
+func TestHelp(t *testing.T) {
+	results := parseArgs([]string{"ganda", "-h"})
+	assert.NotNil(t, results)
+	assert.Nil(t, results.context)      // context isn't set up when help is called
+	assert.Equal(t, "", results.stderr) // help is not written to stderr when explicitly called
+	assert.Contains(t, results.stdout, "NAME:\n   ganda")
+}
+
+func TestVersion(t *testing.T) {
+	results := parseArgs([]string{"ganda", "-v"})
+	assert.NotNil(t, results)
+	assert.Nil(t, results.context) // context isn't set up when version is called
+	assert.Equal(t, "", results.stderr)
+	assert.Equal(t, "ganda version "+testBuildInfo.ToString()+"\n", results.stdout)
+}
+
+func TestWorkers(t *testing.T) {
+	results := parseArgs([]string{"ganda", "-W", "10"})
+	assert.NotNil(t, results)
+	assert.Equal(t, 10, results.context.RequestWorkers)
+	assert.Equal(t, 10, results.context.ResponseWorkers)
+
+	separateResults := parseArgs([]string{"ganda", "-W", "10", "--response-workers", "5"})
+	assert.NotNil(t, results)
+	assert.Equal(t, 10, separateResults.context.RequestWorkers)
+	assert.Equal(t, 5, separateResults.context.ResponseWorkers)
+}
+
+func TestInvalidWorkers(t *testing.T) {
+	testCases := []struct {
+		input string
+		error string
+	}{
+		{strconv.FormatInt(int64(math.MaxInt32)+1, 10), "value out of range"},
+		{"foobar", "invalid value \"foobar\" for flag -W"},
+	}
+
+	for _, tc := range testCases {
+		results := parseArgs([]string{"ganda", "-W", tc.input})
+		assert.NotNil(t, results)
+		assert.Nil(t, results.context)
+		assert.Contains(t, results.stderr, tc.error)
+	}
 }

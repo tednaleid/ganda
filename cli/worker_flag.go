@@ -1,10 +1,13 @@
 package cli
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 import "github.com/urfave/cli/v3"
 
-// the urfave/cli package only supports int64 flags, so we need to add support for int flags
-type Int32Flag = cli.FlagBase[int, cli.IntegerConfig, intValue]
+// the urfave/cli package only supports int64 flags, we only want realistic (>0, not too big) values
+type WorkerFlag = cli.FlagBase[int, cli.IntegerConfig, intValue]
 
 type intValue struct {
 	val  *int
@@ -25,11 +28,13 @@ func (i intValue) ToString(b int) string {
 }
 
 // Below functions are to satisfy the flag.Value interface
-
 func (i *intValue) Set(s string) error {
 	v, err := strconv.Atoi(s)
 	if err != nil {
 		return err
+	}
+	if v < 1 || v > 1<<20 {
+		return fmt.Errorf("value out of range: %v is not between 1 and 2^20", v)
 	}
 	*i.val = v
 	return err

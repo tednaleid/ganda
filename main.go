@@ -26,7 +26,7 @@ func main() {
 
 // allows us to mock out the args and input/output streams for testing
 func runCommand(args []string, in io.Reader, err io.Writer, out io.Writer) error {
-	command := cli.SetupCmd(cli.BuildInfo{Version: version, Commit: commit, Date: date}, in, err, out, processRequests)
+	command := cli.SetupCommand(cli.BuildInfo{Version: version, Commit: commit, Date: date}, in, err, out, processRequests)
 	return command.Run(ctx.Background(), args)
 }
 
