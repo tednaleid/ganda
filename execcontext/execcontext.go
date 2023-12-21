@@ -21,12 +21,12 @@ type Context struct {
 	Insecure               bool
 	BaseDirectory          string
 	DataTemplate           string
-	SubdirLength           int
+	SubdirLength           int64
 	RequestWorkers         int
 	ResponseWorkers        int
 	ConnectTimeoutDuration time.Duration
-	ThrottlePerSecond      int
-	Retries                int
+	ThrottlePerSecond      int64
+	Retries                int64
 	Logger                 *logger.LeveledLogger
 	Out                    io.Writer
 	RequestHeaders         []config.RequestHeader

@@ -17,11 +17,11 @@ type Config struct {
 	DataTemplate          string
 	RequestWorkers        int
 	ResponseWorkers       int
-	SubdirLength          int
+	SubdirLength          int64
 	RequestMethod         string
-	ConnectTimeoutSeconds int
-	ThrottlePerSecond     int
-	Retries               int
+	ConnectTimeoutSeconds int64
+	ThrottlePerSecond     int64
+	Retries               int64
 	RequestHeaders        []RequestHeader
 	RequestFilename       string
 }

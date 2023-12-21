@@ -15,7 +15,7 @@ func SendRequests(context *execcontext.Context, requests chan<- *http.Request) {
 	var url string
 	requestScanner := context.RequestScanner
 	throttleRequestsPerSecond := context.ThrottlePerSecond
-	count := 0
+	count := int64(0)
 	throttle := time.Tick(time.Second)
 
 	for requestScanner.Scan() {
@@ -50,7 +50,7 @@ func ParseUrlAndOptionalBody(input string) (string, io.Reader) {
 
 // input string should be an url followed by space delimited values that will be passed to the Sprintf function
 // where it will replace the "%s" with strings
-func ParseTemplatedInput(input string, dataTemplate string) (string, io.Reader){
+func ParseTemplatedInput(input string, dataTemplate string) (string, io.Reader) {
 	tokens := strings.Split(input, " ")
 
 	url := tokens[0]
@@ -60,7 +60,7 @@ func ParseTemplatedInput(input string, dataTemplate string) (string, io.Reader){
 	}
 
 	// Sprintf wants a []interface{} which isn't compatible with a []string; see: https://golang.org/doc/faq#convert_slice_of_interface
-	bodyTokens := make([]interface{}, len(tokens) -1)
+	bodyTokens := make([]interface{}, len(tokens)-1)
 	for i, value := range tokens[1:] {
 		bodyTokens[i] = value
 	}

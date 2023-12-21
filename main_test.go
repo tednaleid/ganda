@@ -18,99 +18,105 @@ import (
 	"time"
 )
 
-type Scaffold struct {
+type HttpServerStub struct {
 	Server            *httptest.Server
 	BaseURL           string
 	StandardOutBuffer *bytes.Buffer
+	StandardOutStub   io.Writer
 	LogBuffer         *bytes.Buffer
-	StandardOutMock   io.Writer
-	LoggerMock        *log.Logger
+	LoggerStub        *log.Logger
 }
 
-func NewScaffold(handler http.Handler) *Scaffold {
+// The passed in handler function can verify the request and write a response given that input
+func NewHttpServerStub(handler http.Handler) *HttpServerStub {
 	server := httptest.NewServer(handler)
 
-	scaffold := Scaffold{
+	httpServerStub := HttpServerStub{
 		Server:            server,
 		BaseURL:           server.URL,
 		StandardOutBuffer: new(bytes.Buffer),
 		LogBuffer:         new(bytes.Buffer),
 	}
 
-	scaffold.StandardOutMock = scaffold.StandardOutBuffer
-	scaffold.LoggerMock = log.New(scaffold.LogBuffer, "", 0)
+	httpServerStub.StandardOutStub = httpServerStub.StandardOutBuffer
+	httpServerStub.LoggerStub = log.New(httpServerStub.LogBuffer, "", 0)
 
-	return &scaffold
+	return &httpServerStub
+}
+
+func TestSimpleRequest(t *testing.T) {
+	t.Parallel()
+	RunApp([]string{"ganda", "-h"})
 }
 
 func TestRequestHappyPathHeadersAndResults(t *testing.T) {
 	t.Parallel()
-	scaffold := NewScaffold(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// default headers added by http client
 		assert.Equal(t, r.Header["User-Agent"][0], "Go-http-client/1.1", "User-Agent header")
 		assert.Equal(t, r.Header["Connection"][0], "keep-alive", "Connection header")
 		assert.Equal(t, r.Header["Accept-Encoding"][0], "gzip", "Accept-Encoding header")
 		fmt.Fprint(w, "Hello ", r.URL.Path)
 	}))
-	defer scaffold.Server.Close()
+	defer httpServerStub.Server.Close()
 
-	context := newTestContext(scaffold, []string{scaffold.BaseURL + "/bar"})
+	context := newTestContext(httpServerStub, []string{httpServerStub.BaseURL + "/bar"})
 
-	run(context)
+	processRequests(context)
 
-	assertOutput(t, scaffold,
+	assertOutput(t, httpServerStub,
 		"Hello /bar\n",
-		"Response: 200 "+scaffold.BaseURL+"/bar\n")
+		"Response: 200 "+httpServerStub.BaseURL+"/bar\n")
 }
 
 func TestResponseHasJsonEnvelopeWhenRequested(t *testing.T) {
 	t.Parallel()
-	scaffold := NewScaffold(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "{ \"foo\": true }")
 	}))
-	defer scaffold.Server.Close()
+	defer httpServerStub.Server.Close()
 
-	context := newTestContext(scaffold, []string{scaffold.BaseURL + "/bar"})
+	context := newTestContext(httpServerStub, []string{httpServerStub.BaseURL + "/bar"})
 	context.JsonEnvelope = true
 
-	run(context)
+	processRequests(context)
 
-	assertOutput(t, scaffold,
-		"{ \"url\": \""+scaffold.BaseURL+"/bar\", \"code\": 200, \"length\": 15, \"body\": { \"foo\": true } }\n",
-		"Response: 200 "+scaffold.BaseURL+"/bar\n")
+	assertOutput(t, httpServerStub,
+		"{ \"url\": \""+httpServerStub.BaseURL+"/bar\", \"code\": 200, \"length\": 15, \"body\": { \"foo\": true } }\n",
+		"Response: 200 "+httpServerStub.BaseURL+"/bar\n")
 }
 
 func TestErrorResponse(t *testing.T) {
 	t.Parallel()
-	scaffold := NewScaffold(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
 	}))
-	defer scaffold.Server.Close()
+	defer httpServerStub.Server.Close()
 
-	context := newTestContext(scaffold, []string{scaffold.BaseURL + "/bar"})
+	context := newTestContext(httpServerStub, []string{httpServerStub.BaseURL + "/bar"})
 
-	run(context)
+	processRequests(context)
 
-	assertOutput(t, scaffold,
+	assertOutput(t, httpServerStub,
 		"",
-		"Response: 404 "+scaffold.BaseURL+"/bar\n")
+		"Response: 404 "+httpServerStub.BaseURL+"/bar\n")
 }
 
 func TestTimeout(t *testing.T) {
 	t.Parallel()
-	scaffold := NewScaffold(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(10 * time.Millisecond)
 		fmt.Fprint(w, "Should not get this, should time out first")
 	}))
-	defer scaffold.Server.Close()
+	defer httpServerStub.Server.Close()
 
-	url := scaffold.BaseURL + "/bar"
-	c := newTestContext(scaffold, []string{url})
+	url := httpServerStub.BaseURL + "/bar"
+	c := newTestContext(httpServerStub, []string{url})
 	c.ConnectTimeoutDuration = time.Duration(1) * time.Millisecond
 
-	run(c)
+	processRequests(c)
 
-	assertOutput(t, scaffold,
+	assertOutput(t, httpServerStub,
 		"",
 		url+" Error: Get \""+url+"\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n")
 }
@@ -118,7 +124,7 @@ func TestTimeout(t *testing.T) {
 func TestRetryEnabledShouldRetry5XX(t *testing.T) {
 	t.Parallel()
 	requests := 0
-	scaffold := NewScaffold(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests++
 		if requests == 1 {
 			w.WriteHeader(500)
@@ -126,126 +132,126 @@ func TestRetryEnabledShouldRetry5XX(t *testing.T) {
 			fmt.Fprint(w, "Retried request")
 		}
 	}))
-	defer scaffold.Server.Close()
+	defer httpServerStub.Server.Close()
 
-	url := scaffold.BaseURL + "/bar"
-	context := newTestContext(scaffold, []string{url})
+	url := httpServerStub.BaseURL + "/bar"
+	context := newTestContext(httpServerStub, []string{url})
 	context.Retries = 1
 
-	run(context)
+	processRequests(context)
 
 	assert.Equal(t, 2, requests, "had a failed request followed by a successful one")
-	assertOutput(t, scaffold,
+	assertOutput(t, httpServerStub,
 		"Retried request\n",
-		"Response: 500 "+scaffold.BaseURL+"/bar (1)\nResponse: 200 "+scaffold.BaseURL+"/bar\n")
+		"Response: 500 "+httpServerStub.BaseURL+"/bar (1)\nResponse: 200 "+httpServerStub.BaseURL+"/bar\n")
 }
 
 func TestRunningOutOfRetriesShouldShowError(t *testing.T) {
 	t.Parallel()
 	requests := 0
-	scaffold := NewScaffold(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests++
 		w.WriteHeader(500)
 	}))
-	defer scaffold.Server.Close()
+	defer httpServerStub.Server.Close()
 
-	url := scaffold.BaseURL + "/bar"
-	context := newTestContext(scaffold, []string{url})
+	url := httpServerStub.BaseURL + "/bar"
+	context := newTestContext(httpServerStub, []string{url})
 	context.Retries = 2
 
-	run(context)
+	processRequests(context)
 
 	assert.Equal(t, 3, requests, "3 total requests (original and 2 retries), all failed so expecting error")
-	assertOutput(t, scaffold,
+	assertOutput(t, httpServerStub,
 		"",
-		"Response: 500 "+scaffold.BaseURL+"/bar (1)\nResponse: 500 "+scaffold.BaseURL+"/bar (2)\nResponse: 500 "+scaffold.BaseURL+"/bar\n")
+		"Response: 500 "+httpServerStub.BaseURL+"/bar (1)\nResponse: 500 "+httpServerStub.BaseURL+"/bar (2)\nResponse: 500 "+httpServerStub.BaseURL+"/bar\n")
 }
 
 func TestRetryEnabledShouldNotRetry4XX(t *testing.T) {
 	t.Parallel()
 	requestCount := 0
-	scaffold := NewScaffold(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
 		w.WriteHeader(400)
 	}))
-	defer scaffold.Server.Close()
+	defer httpServerStub.Server.Close()
 
-	url := scaffold.BaseURL + "/bar"
-	context := newTestContext(scaffold, []string{url})
+	url := httpServerStub.BaseURL + "/bar"
+	context := newTestContext(httpServerStub, []string{url})
 	context.Retries = 1
 
-	run(context)
+	processRequests(context)
 
 	assert.Equal(t, 1, requestCount, "had a failed request")
-	assertOutput(t, scaffold,
+	assertOutput(t, httpServerStub,
 		"",
-		"Response: 400 "+scaffold.BaseURL+"/bar\n")
+		"Response: 400 "+httpServerStub.BaseURL+"/bar\n")
 }
 
 func TestRetryEnabledShouldRetryTimeout(t *testing.T) {
 	t.Parallel()
 	requestCount := 0
-	scaffold := NewScaffold(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if requestCount == 0 {
 			time.Sleep(10 * time.Millisecond)
 		}
 		requestCount++
 		fmt.Fprint(w, "Request ", requestCount)
 	}))
-	defer scaffold.Server.Close()
+	defer httpServerStub.Server.Close()
 
-	url := scaffold.BaseURL + "/bar"
-	context := newTestContext(scaffold, []string{url})
+	url := httpServerStub.BaseURL + "/bar"
+	context := newTestContext(httpServerStub, []string{url})
 	context.Retries = 1
 	context.ConnectTimeoutDuration = time.Duration(1) * time.Millisecond
 
-	run(context)
+	processRequests(context)
 
 	assert.Equal(t, 2, requestCount, "expected a second request")
-	assertOutput(t, scaffold,
+	assertOutput(t, httpServerStub,
 		"Request 2\n",
-		scaffold.BaseURL+"/bar (1) Error: Get \""+scaffold.BaseURL+"/bar\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\nResponse: 200 "+scaffold.BaseURL+"/bar\n")
+		httpServerStub.BaseURL+"/bar (1) Error: Get \""+httpServerStub.BaseURL+"/bar\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\nResponse: 200 "+httpServerStub.BaseURL+"/bar\n")
 }
 
 func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {
 	t.Parallel()
-	scaffold := NewScaffold(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// turns to uppercase versions for header key when transmitted
 		assert.Equal(t, r.Header["Foo"][0], "bar", "foo header")
 		assert.Equal(t, r.Header["X-Baz"][0], "qux", "baz header")
 		fmt.Fprint(w, "Hello ", r.URL.Path)
 	}))
-	defer scaffold.Server.Close()
+	defer httpServerStub.Server.Close()
 
-	context := newTestContext(scaffold, []string{scaffold.BaseURL + "/bar"})
+	context := newTestContext(httpServerStub, []string{httpServerStub.BaseURL + "/bar"})
 
 	context.RequestHeaders = []config.RequestHeader{
 		{Key: "foo", Value: "bar"},
 		{Key: "x-baz", Value: "qux"},
 	}
 
-	run(context)
+	processRequests(context)
 
-	assertOutput(t, scaffold,
+	assertOutput(t, httpServerStub,
 		"Hello /bar\n",
-		"Response: 200 "+scaffold.BaseURL+"/bar\n")
+		"Response: 200 "+httpServerStub.BaseURL+"/bar\n")
 }
 
-func newTestContext(scaffold *Scaffold, expectedURLPaths []string) *execcontext.Context {
+func newTestContext(httpServerStub *HttpServerStub, expectedURLPaths []string) *execcontext.Context {
 	return &execcontext.Context{
 		RequestWorkers:    1,
 		ResponseWorkers:   1,
 		ThrottlePerSecond: math.MaxInt32,
 		RequestScanner:    urlsScanner(expectedURLPaths),
-		Out:               scaffold.StandardOutMock,
-		Logger:            logger.NewPlainLeveledLogger(scaffold.LoggerMock),
+		Out:               httpServerStub.StandardOutStub,
+		Logger:            logger.NewPlainLeveledLogger(httpServerStub.LoggerStub),
 	}
 }
 
-func assertOutput(t *testing.T, scaffold *Scaffold, expectedStandardOut string, expectedLog string) {
-	actualOut := scaffold.StandardOutBuffer.String()
+func assertOutput(t *testing.T, httpServerStub *HttpServerStub, expectedStandardOut string, expectedLog string) {
+	actualOut := httpServerStub.StandardOutBuffer.String()
 	assert.Equal(t, expectedStandardOut, actualOut, "expected stdout")
-	actualLog := scaffold.LogBuffer.String()
+	actualLog := httpServerStub.LogBuffer.String()
 	assert.Equal(t, expectedLog, actualLog, "expected logger stderr")
 }
 

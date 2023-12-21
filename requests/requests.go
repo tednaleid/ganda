@@ -11,7 +11,7 @@ import (
 )
 
 type HttpClient struct {
-	MaxRetries int
+	MaxRetries int64
 	Client     *http.Client
 	Logger     *logger.LeveledLogger
 }
@@ -61,7 +61,7 @@ func requestWorker(context *execcontext.Context, requests <-chan *http.Request, 
 	}
 }
 
-func requestWithRetry(httpClient *HttpClient, request *http.Request, previouslyFailed int) (*http.Response, error) {
+func requestWithRetry(httpClient *HttpClient, request *http.Request, previouslyFailed int64) (*http.Response, error) {
 	response, err := httpClient.Client.Do(request)
 
 	if previouslyFailed < httpClient.MaxRetries && (err != nil || response.StatusCode >= 500) {

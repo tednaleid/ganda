@@ -3,6 +3,7 @@ package responses
 import (
 	"bytes"
 	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"github.com/tednaleid/ganda/execcontext"
 	"io"
@@ -10,7 +11,6 @@ import (
 	"os"
 	"regexp"
 	"sync"
-	"crypto/sha256"
 )
 
 func StartResponseWorkers(responses <-chan *http.Response, context *execcontext.Context) *sync.WaitGroup {
@@ -119,7 +119,7 @@ func responseWorker(responses <-chan *http.Response, responseHandler func(*http.
 	}
 }
 
-func saveBodyToFile(baseDirectory string, subdirLength int, filename string, body io.ReadCloser) string {
+func saveBodyToFile(baseDirectory string, subdirLength int64, filename string, body io.ReadCloser) string {
 	defer body.Close()
 
 	directory := directoryForFile(baseDirectory, filename, subdirLength)
@@ -138,7 +138,7 @@ func saveBodyToFile(baseDirectory string, subdirLength int, filename string, bod
 	return fullPath
 }
 
-func directoryForFile(baseDirectory string, filename string, subdirLength int) string {
+func directoryForFile(baseDirectory string, filename string, subdirLength int64) string {
 	var directory string
 	if subdirLength <= 0 {
 		directory = fmt.Sprintf("%s/", baseDirectory)
