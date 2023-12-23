@@ -1,26 +1,25 @@
 package parser_test
 
 import (
-	"testing"
-	"strings"
-	"github.com/tednaleid/ganda/parser"
-	"math"
+	"bytes"
 	"github.com/stretchr/testify/assert"
 	"github.com/tednaleid/ganda/execcontext"
-	"net/http"
-	"bufio"
-	"bytes"
+	"github.com/tednaleid/ganda/parser"
 	"io"
+	"math"
+	"net/http"
+	"strings"
+	"testing"
 )
 
 type parseExpectation struct {
-	input  string
+	input        string
 	dataTemplate string
-	url string
-	body string
+	url          string
+	body         string
 }
 
-var parseStaticBodyList = []parseExpectation {
+var parseStaticBodyList = []parseExpectation{
 	{"", "", "", ""},
 	{"http://example.com", "", "http://example.com", ""},
 	{"http://example.com 123 456", "", "http://example.com", "123 456"},
@@ -35,7 +34,7 @@ func TestParseInputToUrlAndBody(t *testing.T) {
 	var bodyReader io.Reader
 
 	for _, expectation := range parseStaticBodyList {
-		if (expectation.dataTemplate == "" ) {
+		if expectation.dataTemplate == "" {
 			url, bodyReader = parser.ParseUrlAndOptionalBody(expectation.input)
 		} else {
 			url, bodyReader = parser.ParseTemplatedInput(expectation.input, expectation.dataTemplate)
@@ -43,7 +42,7 @@ func TestParseInputToUrlAndBody(t *testing.T) {
 
 		assert.Equal(t, expectation.url, url)
 
-		if (expectation.body == "") {
+		if expectation.body == "" {
 			assert.Nil(t, bodyReader)
 		} else {
 			assert.Equal(t, expectation.body, readerToString(bodyReader))
@@ -60,7 +59,7 @@ func TestSendGetRequestsJustUrls(t *testing.T) {
 
 	context := &execcontext.Context{
 		ThrottlePerSecond: math.MaxInt32,
-		RequestScanner:    inputScanner([]string{firstUrl, secondUrl}),
+		In:                inputReader([]string{firstUrl, secondUrl}),
 		RequestMethod:     "GET",
 	}
 
@@ -88,7 +87,7 @@ func TestSendGetRequestsWithBody(t *testing.T) {
 
 	context := &execcontext.Context{
 		ThrottlePerSecond: math.MaxInt32,
-		RequestScanner:    inputScanner([]string{firstLine, secondLine}),
+		In:                inputReader([]string{firstLine, secondLine}),
 		RequestMethod:     "POST",
 		DataTemplate:      "value: %s",
 	}
@@ -116,8 +115,7 @@ func readerToString(reader io.Reader) string {
 	return buf.String()
 }
 
-
-func inputScanner(urls []string) *bufio.Scanner {
+func inputReader(urls []string) io.Reader {
 	stringUrls := strings.Join(urls, "\n")
-	return bufio.NewScanner(strings.NewReader(stringUrls))
+	return strings.NewReader(stringUrls)
 }

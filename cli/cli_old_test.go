@@ -1,7 +1,6 @@
-package main
+package cli
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +17,7 @@ import (
 	"time"
 )
 
-type HttpServerStub struct {
+type OldHttpServerStub struct {
 	Server            *httptest.Server
 	BaseURL           string
 	StandardOutBuffer *bytes.Buffer
@@ -28,10 +27,10 @@ type HttpServerStub struct {
 }
 
 // The passed in handler function can verify the request and write a response given that input
-func NewHttpServerStub(handler http.Handler) *HttpServerStub {
+func NewOldHttpServerStub(handler http.Handler) *OldHttpServerStub {
 	server := httptest.NewServer(handler)
 
-	httpServerStub := HttpServerStub{
+	httpServerStub := OldHttpServerStub{
 		Server:            server,
 		BaseURL:           server.URL,
 		StandardOutBuffer: new(bytes.Buffer),
@@ -44,67 +43,9 @@ func NewHttpServerStub(handler http.Handler) *HttpServerStub {
 	return &httpServerStub
 }
 
-func TestSimpleRequest(t *testing.T) {
-	t.Parallel()
-	RunApp([]string{"ganda", "-h"})
-}
-
-func TestRequestHappyPathHeadersAndResults(t *testing.T) {
-	t.Parallel()
-	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// default headers added by http client
-		assert.Equal(t, r.Header["User-Agent"][0], "Go-http-client/1.1", "User-Agent header")
-		assert.Equal(t, r.Header["Connection"][0], "keep-alive", "Connection header")
-		assert.Equal(t, r.Header["Accept-Encoding"][0], "gzip", "Accept-Encoding header")
-		fmt.Fprint(w, "Hello ", r.URL.Path)
-	}))
-	defer httpServerStub.Server.Close()
-
-	context := newTestContext(httpServerStub, []string{httpServerStub.BaseURL + "/bar"})
-
-	processRequests(context)
-
-	assertOutput(t, httpServerStub,
-		"Hello /bar\n",
-		"Response: 200 "+httpServerStub.BaseURL+"/bar\n")
-}
-
-func TestResponseHasJsonEnvelopeWhenRequested(t *testing.T) {
-	t.Parallel()
-	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "{ \"foo\": true }")
-	}))
-	defer httpServerStub.Server.Close()
-
-	context := newTestContext(httpServerStub, []string{httpServerStub.BaseURL + "/bar"})
-	context.JsonEnvelope = true
-
-	processRequests(context)
-
-	assertOutput(t, httpServerStub,
-		"{ \"url\": \""+httpServerStub.BaseURL+"/bar\", \"code\": 200, \"length\": 15, \"body\": { \"foo\": true } }\n",
-		"Response: 200 "+httpServerStub.BaseURL+"/bar\n")
-}
-
-func TestErrorResponse(t *testing.T) {
-	t.Parallel()
-	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(404)
-	}))
-	defer httpServerStub.Server.Close()
-
-	context := newTestContext(httpServerStub, []string{httpServerStub.BaseURL + "/bar"})
-
-	processRequests(context)
-
-	assertOutput(t, httpServerStub,
-		"",
-		"Response: 404 "+httpServerStub.BaseURL+"/bar\n")
-}
-
 func TestTimeout(t *testing.T) {
 	t.Parallel()
-	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewOldHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(10 * time.Millisecond)
 		fmt.Fprint(w, "Should not get this, should time out first")
 	}))
@@ -114,7 +55,7 @@ func TestTimeout(t *testing.T) {
 	c := newTestContext(httpServerStub, []string{url})
 	c.ConnectTimeoutDuration = time.Duration(1) * time.Millisecond
 
-	processRequests(c)
+	ProcessRequests(c)
 
 	assertOutput(t, httpServerStub,
 		"",
@@ -124,7 +65,7 @@ func TestTimeout(t *testing.T) {
 func TestRetryEnabledShouldRetry5XX(t *testing.T) {
 	t.Parallel()
 	requests := 0
-	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewOldHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests++
 		if requests == 1 {
 			w.WriteHeader(500)
@@ -138,7 +79,7 @@ func TestRetryEnabledShouldRetry5XX(t *testing.T) {
 	context := newTestContext(httpServerStub, []string{url})
 	context.Retries = 1
 
-	processRequests(context)
+	ProcessRequests(context)
 
 	assert.Equal(t, 2, requests, "had a failed request followed by a successful one")
 	assertOutput(t, httpServerStub,
@@ -149,7 +90,7 @@ func TestRetryEnabledShouldRetry5XX(t *testing.T) {
 func TestRunningOutOfRetriesShouldShowError(t *testing.T) {
 	t.Parallel()
 	requests := 0
-	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewOldHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests++
 		w.WriteHeader(500)
 	}))
@@ -159,7 +100,7 @@ func TestRunningOutOfRetriesShouldShowError(t *testing.T) {
 	context := newTestContext(httpServerStub, []string{url})
 	context.Retries = 2
 
-	processRequests(context)
+	ProcessRequests(context)
 
 	assert.Equal(t, 3, requests, "3 total requests (original and 2 retries), all failed so expecting error")
 	assertOutput(t, httpServerStub,
@@ -170,7 +111,7 @@ func TestRunningOutOfRetriesShouldShowError(t *testing.T) {
 func TestRetryEnabledShouldNotRetry4XX(t *testing.T) {
 	t.Parallel()
 	requestCount := 0
-	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewOldHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
 		w.WriteHeader(400)
 	}))
@@ -180,7 +121,7 @@ func TestRetryEnabledShouldNotRetry4XX(t *testing.T) {
 	context := newTestContext(httpServerStub, []string{url})
 	context.Retries = 1
 
-	processRequests(context)
+	ProcessRequests(context)
 
 	assert.Equal(t, 1, requestCount, "had a failed request")
 	assertOutput(t, httpServerStub,
@@ -191,7 +132,7 @@ func TestRetryEnabledShouldNotRetry4XX(t *testing.T) {
 func TestRetryEnabledShouldRetryTimeout(t *testing.T) {
 	t.Parallel()
 	requestCount := 0
-	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewOldHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if requestCount == 0 {
 			time.Sleep(10 * time.Millisecond)
 		}
@@ -205,7 +146,7 @@ func TestRetryEnabledShouldRetryTimeout(t *testing.T) {
 	context.Retries = 1
 	context.ConnectTimeoutDuration = time.Duration(1) * time.Millisecond
 
-	processRequests(context)
+	ProcessRequests(context)
 
 	assert.Equal(t, 2, requestCount, "expected a second request")
 	assertOutput(t, httpServerStub,
@@ -215,7 +156,7 @@ func TestRetryEnabledShouldRetryTimeout(t *testing.T) {
 
 func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {
 	t.Parallel()
-	httpServerStub := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpServerStub := NewOldHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// turns to uppercase versions for header key when transmitted
 		assert.Equal(t, r.Header["Foo"][0], "bar", "foo header")
 		assert.Equal(t, r.Header["X-Baz"][0], "qux", "baz header")
@@ -230,32 +171,32 @@ func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {
 		{Key: "x-baz", Value: "qux"},
 	}
 
-	processRequests(context)
+	ProcessRequests(context)
 
 	assertOutput(t, httpServerStub,
 		"Hello /bar\n",
 		"Response: 200 "+httpServerStub.BaseURL+"/bar\n")
 }
 
-func newTestContext(httpServerStub *HttpServerStub, expectedURLPaths []string) *execcontext.Context {
+func newTestContext(httpServerStub *OldHttpServerStub, expectedURLPaths []string) *execcontext.Context {
 	return &execcontext.Context{
 		RequestWorkers:    1,
 		ResponseWorkers:   1,
 		ThrottlePerSecond: math.MaxInt32,
-		RequestScanner:    urlsScanner(expectedURLPaths),
+		In:                urlsReader(expectedURLPaths),
 		Out:               httpServerStub.StandardOutStub,
 		Logger:            logger.NewPlainLeveledLogger(httpServerStub.LoggerStub),
 	}
 }
 
-func assertOutput(t *testing.T, httpServerStub *HttpServerStub, expectedStandardOut string, expectedLog string) {
+func assertOutput(t *testing.T, httpServerStub *OldHttpServerStub, expectedStandardOut string, expectedLog string) {
 	actualOut := httpServerStub.StandardOutBuffer.String()
 	assert.Equal(t, expectedStandardOut, actualOut, "expected stdout")
 	actualLog := httpServerStub.LogBuffer.String()
 	assert.Equal(t, expectedLog, actualLog, "expected logger stderr")
 }
 
-func urlsScanner(urls []string) *bufio.Scanner {
+func urlsReader(urls []string) io.Reader {
 	stringUrls := strings.Join(urls, "\n")
-	return bufio.NewScanner(strings.NewReader(stringUrls))
+	return strings.NewReader(stringUrls)
 }

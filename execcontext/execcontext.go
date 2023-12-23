@@ -1,7 +1,6 @@
 package execcontext
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/logger"
@@ -28,9 +27,9 @@ type Context struct {
 	ThrottlePerSecond      int64
 	Retries                int64
 	Logger                 *logger.LeveledLogger
+	In                     io.Reader
 	Out                    io.Writer
 	RequestHeaders         []config.RequestHeader
-	RequestScanner         *bufio.Scanner
 }
 
 func New(conf *config.Config, in io.Reader, stderr io.Writer, stdout io.Writer) (*Context, error) {
@@ -50,6 +49,7 @@ func New(conf *config.Config, in io.Reader, stderr io.Writer, stdout io.Writer) 
 		ResponseWorkers:        conf.ResponseWorkers,
 		RequestHeaders:         conf.RequestHeaders,
 		ThrottlePerSecond:      math.MaxInt32,
+		In:                     in,
 		Out:                    stdout,
 		Logger:                 createLeveledLogger(conf, stderr),
 	}
@@ -66,7 +66,10 @@ func New(conf *config.Config, in io.Reader, stderr io.Writer, stdout io.Writer) 
 		context.ResponseWorkers = context.RequestWorkers
 	}
 
-	context.RequestScanner, err = createRequestScanner(conf.RequestFilename, context.Logger)
+	if len(conf.RequestFilename) > 0 {
+		// replace stdin with the file
+		context.In, err = requestFileReader(conf.RequestFilename)
+	}
 
 	if len(conf.BaseDirectory) > 0 {
 		context.WriteFiles = true
@@ -85,34 +88,17 @@ func createLeveledLogger(conf *config.Config, stderr io.Writer) *logger.LeveledL
 
 	stdErrLogger := log.New(stderr, "", 0)
 
-	if conf.NoColor {
-		return logger.NewPlainLeveledLogger(stdErrLogger)
+	if conf.Color {
+		return logger.NewLeveledLogger(stdErrLogger)
 	}
 
-	return logger.NewLeveledLogger(stdErrLogger)
+	return logger.NewPlainLeveledLogger(stdErrLogger)
 }
 
-func createRequestScanner(requestFilename string, logger *logger.LeveledLogger) (*bufio.Scanner, error) {
-	if len(requestFilename) > 0 {
-		logger.Info("Opening file of requests at: %s", requestFilename)
-		return requestFileScanner(requestFilename)
-	}
-	return urlStdinScanner(), nil
-}
-
-const MaxTokenSize = 1024 * 1024 * 1024
-
-func urlStdinScanner() *bufio.Scanner {
-	s := bufio.NewScanner(os.Stdin)
-	s.Buffer(make([]byte, 1024*2), MaxTokenSize)
-	return s
-}
-
-func requestFileScanner(requestFilename string) (*bufio.Scanner, error) {
+func requestFileReader(requestFilename string) (io.Reader, error) {
 	if _, err := os.Stat(requestFilename); os.IsNotExist(err) {
 		return nil, fmt.Errorf("Unable to open specified file: %s", requestFilename)
 	}
 
-	file, err := os.Open(requestFilename)
-	return bufio.NewScanner(file), err
+	return os.Open(requestFilename)
 }

@@ -1,14 +1,7 @@
 package main
 
 import (
-	ctx "context"
 	"github.com/tednaleid/ganda/cli"
-	"github.com/tednaleid/ganda/execcontext"
-	"github.com/tednaleid/ganda/parser"
-	"github.com/tednaleid/ganda/requests"
-	"github.com/tednaleid/ganda/responses"
-	"io"
-	"net/http"
 	"os"
 )
 
@@ -21,27 +14,11 @@ var (
 )
 
 func main() {
-	runCommand(os.Args, os.Stdin, os.Stderr, os.Stdout)
-}
-
-// allows us to mock out the args and input/output streams for testing
-func runCommand(args []string, in io.Reader, err io.Writer, out io.Writer) error {
-	command := cli.SetupCommand(cli.BuildInfo{Version: version, Commit: commit, Date: date}, in, err, out, processRequests)
-	return command.Run(ctx.Background(), args)
-}
-
-func processRequests(context *execcontext.Context) {
-	requestsChannel := make(chan *http.Request)
-	responsesChannel := make(chan *http.Response)
-
-	requestWaitGroup := requests.StartRequestWorkers(requestsChannel, responsesChannel, context)
-	responseWaitGroup := responses.StartResponseWorkers(responsesChannel, context)
-
-	parser.SendRequests(context, requestsChannel)
-
-	close(requestsChannel)
-	requestWaitGroup.Wait()
-
-	close(responsesChannel)
-	responseWaitGroup.Wait()
+	err := cli.RunCommand(
+		cli.BuildInfo{Version: version, Commit: commit, Date: date},
+		os.Args, os.Stdin, os.Stderr, os.Stdout, cli.ProcessRequests,
+	)
+	if err != nil {
+		os.Exit(1)
+	}
 }

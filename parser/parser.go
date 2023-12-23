@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/execcontext"
@@ -10,10 +11,18 @@ import (
 	"time"
 )
 
+const MaxTokenSize = 1024 * 1024 * 1024
+
+func bufferedScanner(reader io.Reader) *bufio.Scanner {
+	s := bufio.NewScanner(reader)
+	s.Buffer(make([]byte, 1024*2), MaxTokenSize)
+	return s
+}
+
 func SendRequests(context *execcontext.Context, requests chan<- *http.Request) {
 	var body io.Reader = nil
 	var url string
-	requestScanner := context.RequestScanner
+	requestScanner := bufferedScanner(context.In)
 	throttleRequestsPerSecond := context.ThrottlePerSecond
 	count := int64(0)
 	throttle := time.Tick(time.Second)

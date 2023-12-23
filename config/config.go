@@ -9,7 +9,7 @@ import (
 type Config struct {
 	Silent                bool
 	Insecure              bool
-	NoColor               bool
+	Color                 bool
 	JsonEnvelope          bool
 	HashBody              bool
 	DiscardBody           bool
@@ -31,7 +31,7 @@ func New() *Config {
 		RequestMethod:         "GET",
 		Insecure:              false,
 		Silent:                false,
-		NoColor:               false,
+		Color:                 false,
 		JsonEnvelope:          false,
 		HashBody:              false,
 		DiscardBody:           false,

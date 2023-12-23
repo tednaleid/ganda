@@ -14,7 +14,6 @@ type intValue struct {
 	base int
 }
 
-// Below functions are to satisfy the ValueCreator interface
 func (i intValue) Create(val int, p *int, c cli.IntegerConfig) cli.Value {
 	*p = val
 	return &intValue{
@@ -27,7 +26,6 @@ func (i intValue) ToString(b int) string {
 	return strconv.Itoa(b)
 }
 
-// Below functions are to satisfy the flag.Value interface
 func (i *intValue) Set(s string) error {
 	v, err := strconv.Atoi(s)
 	if err != nil {

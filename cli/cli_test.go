@@ -1,80 +1,115 @@
 package cli
 
 import (
-	"bytes"
-	"context"
+	"fmt"
 	"github.com/stretchr/testify/assert"
-	"github.com/tednaleid/ganda/execcontext"
-	"math"
-	"strconv"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
-var testBuildInfo = BuildInfo{Version: "testing", Commit: "123abc", Date: "2023-12-20"}
-
-type runResults struct {
-	stderr  string
-	stdout  string
-	context *execcontext.Context
+type HttpServerStub struct {
+	*httptest.Server
 }
 
-func parseArgs(args []string) runResults {
-	in := strings.NewReader("")
-	err := new(bytes.Buffer)
-	out := new(bytes.Buffer)
-	var resultContext *execcontext.Context
+// The passed in handler function can verify the request and write a response given that input
+func NewHttpServerStub(handler http.Handler) *HttpServerStub {
+	return &HttpServerStub{httptest.NewServer(handler)}
+}
 
-	processRequests := func(context *execcontext.Context) {
-		resultContext = context
+// append the fragment to the end of the server base url
+func (server *HttpServerStub) urlFor(fragment string) string {
+	return fmt.Sprintf("%s/%s", server.URL, fragment)
+}
+
+func (server *HttpServerStub) urlsFor(fragments []string) []string {
+	urls := make([]string, len(fragments))
+	for i, path := range fragments {
+		urls[i] = server.urlFor(path)
 	}
-
-	command := SetupCommand(testBuildInfo, in, err, out, processRequests)
-	command.Run(context.Background(), args)
-	return runResults{err.String(), out.String(), resultContext}
+	return urls
 }
 
-func TestHelp(t *testing.T) {
-	results := parseArgs([]string{"ganda", "-h"})
-	assert.NotNil(t, results)
-	assert.Nil(t, results.context)      // context isn't set up when help is called
-	assert.Equal(t, "", results.stderr) // help is not written to stderr when explicitly called
-	assert.Contains(t, results.stdout, "NAME:\n   ganda")
+// stub stdin for the path fragment to create an url for this server
+func (server *HttpServerStub) stubStdinUrl(fragment string) io.Reader {
+	return server.stubStdinUrls([]string{fragment})
 }
 
-func TestVersion(t *testing.T) {
-	results := parseArgs([]string{"ganda", "-v"})
-	assert.NotNil(t, results)
-	assert.Nil(t, results.context) // context isn't set up when version is called
-	assert.Equal(t, "", results.stderr)
-	assert.Equal(t, "ganda version "+testBuildInfo.ToString()+"\n", results.stdout)
+// given an array of paths, we will create a stub of stdin that has one url per line for our server stub
+func (server *HttpServerStub) stubStdinUrls(fragments []string) io.Reader {
+	urls := server.urlsFor(fragments)
+	urlsString := strings.Join(urls, "\n")
+	return strings.NewReader(urlsString)
 }
 
-func TestWorkers(t *testing.T) {
-	results := parseArgs([]string{"ganda", "-W", "10"})
-	assert.NotNil(t, results)
-	assert.Equal(t, 10, results.context.RequestWorkers)
-	assert.Equal(t, 10, results.context.ResponseWorkers)
+func TestRequestHappyPathHasDefaultHeaders(t *testing.T) {
+	t.Parallel()
+	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// default headers added by http client
+		assert.Equal(t, r.Header["User-Agent"][0], "Go-http-client/1.1", "User-Agent header")
+		assert.Equal(t, r.Header["Connection"][0], "keep-alive", "Connection header")
+		assert.Equal(t, r.Header["Accept-Encoding"][0], "gzip", "Accept-Encoding header")
+		fmt.Fprint(w, "Hello ", r.URL.Path)
+	}))
+	defer server.Close()
 
-	separateResults := parseArgs([]string{"ganda", "-W", "10", "--response-workers", "5"})
-	assert.NotNil(t, results)
-	assert.Equal(t, 10, separateResults.context.RequestWorkers)
-	assert.Equal(t, 5, separateResults.context.ResponseWorkers)
+	runResults, _ := RunApp([]string{"ganda"}, server.stubStdinUrl("foo/1"))
+
+	runResults.assert(
+		t,
+		"Hello /foo/1\n",
+		"Response: 200 "+server.urlFor("foo/1")+"\n",
+	)
 }
 
-func TestInvalidWorkers(t *testing.T) {
-	testCases := []struct {
-		input string
-		error string
-	}{
-		{strconv.FormatInt(int64(math.MaxInt32)+1, 10), "value out of range"},
-		{"foobar", "invalid value \"foobar\" for flag -W"},
-	}
+func TestRequestColorOutput(t *testing.T) {
+	t.Parallel()
+	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "Hello ", r.URL.Path)
+	}))
+	defer server.Close()
 
-	for _, tc := range testCases {
-		results := parseArgs([]string{"ganda", "-W", tc.input})
-		assert.NotNil(t, results)
-		assert.Nil(t, results.context)
-		assert.Contains(t, results.stderr, tc.error)
-	}
+	runResults, _ := RunApp([]string{"ganda", "--color"}, server.stubStdinUrl("foo/1"))
+
+	runResults.assert(
+		t,
+		"Hello /foo/1\n",
+		"\x1b[32mResponse: 200 "+server.urlFor("foo/1")+"\x1b[0m\n",
+	)
 }
+
+func TestResponseHasJsonEnvelopeWhenRequested(t *testing.T) {
+	t.Parallel()
+	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "{ \"foo\": true }")
+	}))
+	defer server.Close()
+
+	runResults, _ := RunApp([]string{"ganda", "-J"}, server.stubStdinUrl("bar"))
+
+	runResults.assert(
+		t,
+		"{ \"url\": \""+server.urlFor("bar")+"\", \"code\": 200, \"length\": 15, \"body\": { \"foo\": true } }\n",
+		"Response: 200 "+server.urlFor("bar")+"\n",
+	)
+}
+
+func TestErrorResponse(t *testing.T) {
+	t.Parallel()
+	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+
+	runResults, _ := RunApp([]string{"ganda", "-J"}, server.stubStdinUrl("bar"))
+
+	runResults.assert(
+		t,
+		"{ \"url\": \""+server.urlFor("bar")+"\", \"code\": 404, \"length\": 0, \"body\": null }\n",
+		"Response: 404 "+server.urlFor("bar")+"\n",
+	)
+}
+
+// TODO start here convert the rest of the tests in cli_old_test.go to use the new RunApp function
