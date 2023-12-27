@@ -7,40 +7,40 @@ import (
 )
 
 type Config struct {
-	Silent                bool
-	Insecure              bool
-	Color                 bool
-	JsonEnvelope          bool
-	HashBody              bool
-	DiscardBody           bool
-	BaseDirectory         string
-	DataTemplate          string
-	RequestWorkers        int
-	ResponseWorkers       int
-	SubdirLength          int64
-	RequestMethod         string
-	ConnectTimeoutSeconds int64
-	ThrottlePerSecond     int64
-	Retries               int64
-	RequestHeaders        []RequestHeader
-	RequestFilename       string
+	Silent               bool
+	Insecure             bool
+	Color                bool
+	JsonEnvelope         bool
+	HashBody             bool
+	DiscardBody          bool
+	BaseDirectory        string
+	DataTemplate         string
+	RequestWorkers       int
+	ResponseWorkers      int
+	SubdirLength         int64
+	RequestMethod        string
+	ConnectTimeoutMillis int64
+	ThrottlePerSecond    int64
+	Retries              int64
+	RequestHeaders       []RequestHeader
+	RequestFilename      string
 }
 
 func New() *Config {
 	return &Config{
-		RequestMethod:         "GET",
-		Insecure:              false,
-		Silent:                false,
-		Color:                 false,
-		JsonEnvelope:          false,
-		HashBody:              false,
-		DiscardBody:           false,
-		DataTemplate:          "",
-		RequestWorkers:        1,
-		SubdirLength:          0,
-		ConnectTimeoutSeconds: 10,
-		ThrottlePerSecond:     math.MaxInt32,
-		Retries:               0,
+		RequestMethod:        "GET",
+		Insecure:             false,
+		Silent:               false,
+		Color:                false,
+		JsonEnvelope:         false,
+		HashBody:             false,
+		DiscardBody:          false,
+		DataTemplate:         "",
+		RequestWorkers:       1,
+		SubdirLength:         0,
+		ConnectTimeoutMillis: 10_000,
+		ThrottlePerSecond:    math.MaxInt32,
+		Retries:              0,
 	}
 }
 

@@ -36,22 +36,23 @@ func New(conf *config.Config, in io.Reader, stderr io.Writer, stdout io.Writer) 
 	var err error
 
 	context := Context{
-		ConnectTimeoutDuration: time.Duration(conf.ConnectTimeoutSeconds) * time.Second,
+		BaseDirectory:          conf.BaseDirectory,
+		ConnectTimeoutDuration: time.Duration(conf.ConnectTimeoutMillis) * time.Millisecond,
+		DataTemplate:           conf.DataTemplate,
+		DiscardBody:            conf.DiscardBody,
+		HashBody:               conf.HashBody,
+		In:                     in,
 		Insecure:               conf.Insecure,
 		JsonEnvelope:           conf.JsonEnvelope,
-		HashBody:               conf.HashBody,
-		DiscardBody:            conf.DiscardBody,
-		RequestMethod:          conf.RequestMethod,
-		BaseDirectory:          conf.BaseDirectory,
-		DataTemplate:           conf.DataTemplate,
-		SubdirLength:           conf.SubdirLength,
-		RequestWorkers:         conf.RequestWorkers,
-		ResponseWorkers:        conf.ResponseWorkers,
-		RequestHeaders:         conf.RequestHeaders,
-		ThrottlePerSecond:      math.MaxInt32,
-		In:                     in,
-		Out:                    stdout,
 		Logger:                 createLeveledLogger(conf, stderr),
+		Out:                    stdout,
+		RequestMethod:          conf.RequestMethod,
+		RequestWorkers:         conf.RequestWorkers,
+		RequestHeaders:         conf.RequestHeaders,
+		ResponseWorkers:        conf.ResponseWorkers,
+		Retries:                conf.Retries,
+		SubdirLength:           conf.SubdirLength,
+		ThrottlePerSecond:      math.MaxInt32,
 	}
 
 	if conf.ThrottlePerSecond > 0 {

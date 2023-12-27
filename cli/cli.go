@@ -45,10 +45,10 @@ func setupCommand(
 		ErrWriter:   stderr,
 		Flags: []cli.Flag{
 			&cli.IntFlag{
-				Name:        "connect-timeout",
-				Usage:       "number of seconds to wait for a connection to be established before timeout",
-				Value:       conf.ConnectTimeoutSeconds,
-				Destination: &conf.ConnectTimeoutSeconds,
+				Name:        "connect-timeout-ms",
+				Usage:       "number of milliseconds to wait for a connection to be established before timeout",
+				Value:       conf.ConnectTimeoutMillis,
+				Destination: &conf.ConnectTimeoutMillis,
 			},
 			&cli.StringFlag{
 				Name:        "data-template",

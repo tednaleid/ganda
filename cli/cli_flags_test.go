@@ -35,6 +35,16 @@ func TestWorkers(t *testing.T) {
 	assert.Equal(t, 5, separateResults.context.ResponseWorkers)
 }
 
+func TestRetries(t *testing.T) {
+	results, _ := ParseArgs([]string{"ganda"})
+	assert.NotNil(t, results)
+	assert.Equal(t, int64(0), results.context.Retries)
+
+	separateResults, _ := ParseArgs([]string{"ganda", "--retry", "5"})
+	assert.NotNil(t, results)
+	assert.Equal(t, int64(5), separateResults.context.Retries)
+}
+
 func TestInvalidWorkers(t *testing.T) {
 	testCases := []struct {
 		input string
