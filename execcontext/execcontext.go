@@ -12,24 +12,25 @@ import (
 )
 
 type Context struct {
-	RequestMethod          string
-	WriteFiles             bool
-	JsonEnvelope           bool
-	HashBody               bool
-	DiscardBody            bool
-	Insecure               bool
 	BaseDirectory          string
-	DataTemplate           string
-	SubdirLength           int64
-	RequestWorkers         int
-	ResponseWorkers        int
+	BaseRetryDelayDuration time.Duration
 	ConnectTimeoutDuration time.Duration
-	ThrottlePerSecond      int64
-	Retries                int64
-	Logger                 *logger.LeveledLogger
+	DataTemplate           string
+	DiscardBody            bool
+	HashBody               bool
 	In                     io.Reader
+	Insecure               bool
+	JsonEnvelope           bool
+	Logger                 *logger.LeveledLogger
 	Out                    io.Writer
 	RequestHeaders         []config.RequestHeader
+	RequestMethod          string
+	RequestWorkers         int
+	ResponseWorkers        int
+	Retries                int64
+	SubdirLength           int64
+	ThrottlePerSecond      int64
+	WriteFiles             bool
 }
 
 func New(conf *config.Config, in io.Reader, stderr io.Writer, stdout io.Writer) (*Context, error) {
@@ -37,6 +38,7 @@ func New(conf *config.Config, in io.Reader, stderr io.Writer, stdout io.Writer) 
 
 	context := Context{
 		BaseDirectory:          conf.BaseDirectory,
+		BaseRetryDelayDuration: time.Duration(conf.BaseRetryDelayMillis) * time.Millisecond,
 		ConnectTimeoutDuration: time.Duration(conf.ConnectTimeoutMillis) * time.Millisecond,
 		DataTemplate:           conf.DataTemplate,
 		DiscardBody:            conf.DiscardBody,

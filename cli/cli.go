@@ -45,6 +45,12 @@ func setupCommand(
 		ErrWriter:   stderr,
 		Flags: []cli.Flag{
 			&cli.IntFlag{
+				Name:        "base-retry-ms",
+				Usage:       "the base number of milliseconds to wait before retrying a request, exponential backoff is used for retries",
+				Value:       conf.BaseRetryDelayMillis,
+				Destination: &conf.BaseRetryDelayMillis,
+			},
+			&cli.IntFlag{
 				Name:        "connect-timeout-ms",
 				Usage:       "number of milliseconds to wait for a connection to be established before timeout",
 				Value:       conf.ConnectTimeoutMillis,

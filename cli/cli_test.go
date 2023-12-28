@@ -145,7 +145,7 @@ func TestRetryEnabledShouldRetry5XX(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunApp([]string{"ganda", "--retry", "1"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunApp([]string{"ganda", "--retry", "1", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
 
 	url := server.urlFor("bar")
 
@@ -166,7 +166,7 @@ func TestRunningOutOfRetriesShouldShowError(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunApp([]string{"ganda", "--retry", "2"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunApp([]string{"ganda", "--retry", "2", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
 
 	url := server.urlFor("bar")
 
@@ -187,7 +187,7 @@ func TestRetryEnabledShouldNotRetry4XX(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunApp([]string{"ganda", "--retry", "1"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunApp([]string{"ganda", "--retry", "1", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
 
 	url := server.urlFor("bar")
 
@@ -204,13 +204,13 @@ func TestRetryEnabledShouldRetryTimeout(t *testing.T) {
 		requestCount++
 		if requestCount == 1 {
 			// for the first request, we sleep longer than it takes to timeout
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(20 * time.Millisecond)
 		}
 		fmt.Fprint(w, "Request ", requestCount)
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunApp([]string{"ganda", "--connect-timeout-ms", "10", "--retry", "1"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunApp([]string{"ganda", "--connect-timeout-ms", "10", "--retry", "1", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
 	url := server.urlFor("bar")
 
 	//assert.Equal(t, 2, requestCount, "expected a second request")

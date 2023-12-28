@@ -19,10 +19,15 @@ func StartResponseWorkers(responses <-chan *http.Response, context *execcontext.
 
 	for i := 1; i <= context.ResponseWorkers; i++ {
 		go func() {
+			emitResponse := determineEmitResponseFn(context)
+
 			if context.WriteFiles {
+				// TODO change this so that it calls determineEmitResponseFn regardless of if it is saving or printing
+				// and then passes that responseFn to the worker we create
+
 				responseSavingWorker(responses, context)
 			} else {
-				responsePrintingWorker(responses, context)
+				responsePrintingWorker(responses, emitResponse, context)
 			}
 			responseWaitGroup.Done()
 		}()
@@ -41,12 +46,11 @@ func responseSavingWorker(responses <-chan *http.Response, context *execcontext.
 	})
 }
 
-func responsePrintingWorker(responses <-chan *http.Response, context *execcontext.Context) {
-	emitResponseFn := determineEmitResponseFn(context)
+func responsePrintingWorker(responses <-chan *http.Response, emitResponse emitResponseFn, context *execcontext.Context) {
 	out := context.Out
 	responseWorker(responses, func(response *http.Response) {
 		context.Logger.LogResponse(response.StatusCode, response.Request.URL.String())
-		emitResponseFn(response, out)
+		emitResponse(response, out)
 	})
 }
 

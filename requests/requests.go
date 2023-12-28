@@ -51,7 +51,7 @@ func requestWorker(context *execcontext.Context, requests <-chan *http.Request, 
 	httpClient := NewHttpClient(context)
 	for request := range requests {
 
-		finalResponse, err := requestWithRetry(httpClient, request, 0)
+		finalResponse, err := requestWithRetry(httpClient, request, context.BaseRetryDelayDuration, 0)
 
 		if err == nil {
 			responses <- finalResponse
@@ -61,7 +61,7 @@ func requestWorker(context *execcontext.Context, requests <-chan *http.Request, 
 	}
 }
 
-func requestWithRetry(httpClient *HttpClient, request *http.Request, previouslyFailed int64) (*http.Response, error) {
+func requestWithRetry(httpClient *HttpClient, request *http.Request, baseRetryDelay time.Duration, previouslyFailed int64) (*http.Response, error) {
 	response, err := httpClient.Client.Do(request)
 
 	if previouslyFailed < httpClient.MaxRetries && (err != nil || response.StatusCode >= 500) {
@@ -75,9 +75,10 @@ func requestWithRetry(httpClient *HttpClient, request *http.Request, previouslyF
 			httpClient.Logger.LogError(err, message)
 		}
 
-		time.Sleep(time.Duration(failed) * time.Second)
+		// delay before retrying, exponential backoff, start with 1x the base retry delay
+		time.Sleep(baseRetryDelay * time.Duration(2^(failed-1)))
 
-		return requestWithRetry(httpClient, request, failed)
+		return requestWithRetry(httpClient, request, baseRetryDelay, failed)
 	}
 
 	return response, err
