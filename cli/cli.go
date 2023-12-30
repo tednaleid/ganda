@@ -2,6 +2,7 @@ package cli
 
 import (
 	ctx "context"
+	"fmt"
 	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/execcontext"
 	"github.com/tednaleid/ganda/parser"
@@ -49,6 +50,31 @@ func setupCommand(
 				Usage:       "the base number of milliseconds to wait before retrying a request, exponential backoff is used for retries",
 				Value:       conf.BaseRetryDelayMillis,
 				Destination: &conf.BaseRetryDelayMillis,
+			},
+			&cli.StringFlag{
+				Name:        "response-body",
+				Aliases:     []string{"B"},
+				DefaultText: "raw",
+				Usage:       "transforms the body of the response. Values: 'raw' (unchanged), 'base64', 'discard' (don't emit body), 'escaped' (JSON escaped string), 'sha256'",
+				// we are slightly abusing the validator as a setter because v3 of urfave/cli doesn't currently support generic flags
+				Validator: func(s string) error {
+					switch s {
+					case "", string(config.Raw):
+						conf.ResponseBody = config.Raw
+					case string(config.Base64):
+						conf.ResponseBody = config.Base64
+					case string(config.Discard):
+						conf.ResponseBody = config.Discard
+					case string(config.Escaped):
+						conf.ResponseBody = config.Escaped
+					case string(config.Sha256):
+						conf.ResponseBody = config.Sha256
+						return nil
+					default:
+						return fmt.Errorf("invalid response-body value: %s", s)
+					}
+					return nil
+				},
 			},
 			&cli.IntFlag{
 				Name:        "connect-timeout-ms",

@@ -26,6 +26,7 @@ type Context struct {
 	RequestHeaders         []config.RequestHeader
 	RequestMethod          string
 	RequestWorkers         int
+	ResponseBody           config.ResponseBodyType
 	ResponseWorkers        int
 	Retries                int64
 	SubdirLength           int64
@@ -51,6 +52,7 @@ func New(conf *config.Config, in io.Reader, stderr io.Writer, stdout io.Writer) 
 		RequestMethod:          conf.RequestMethod,
 		RequestWorkers:         conf.RequestWorkers,
 		RequestHeaders:         conf.RequestHeaders,
+		ResponseBody:           conf.ResponseBody,
 		ResponseWorkers:        conf.ResponseWorkers,
 		Retries:                conf.Retries,
 		SubdirLength:           conf.SubdirLength,

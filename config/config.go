@@ -21,6 +21,7 @@ type Config struct {
 	RequestMethod        string
 	RequestWorkers       int
 	ResponseWorkers      int
+	ResponseBody         ResponseBodyType
 	Retries              int64
 	Silent               bool
 	SubdirLength         int64
@@ -39,6 +40,7 @@ func New() *Config {
 		JsonEnvelope:         false,
 		RequestMethod:        "GET",
 		RequestWorkers:       1,
+		ResponseBody:         Raw,
 		Retries:              0,
 		Silent:               false,
 		SubdirLength:         0,
@@ -76,3 +78,13 @@ func ConvertRequestHeaders(stringHeaders []string) ([]RequestHeader, error) {
 
 	return requestHeaders, nil
 }
+
+type ResponseBodyType string
+
+const (
+	Base64  ResponseBodyType = "base64"
+	Discard ResponseBodyType = "discard"
+	Escaped ResponseBodyType = "escaped" // escaped to a valid JSON string
+	Sha256  ResponseBodyType = "sha256"
+	Raw     ResponseBodyType = "raw"
+)
