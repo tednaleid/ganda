@@ -3,6 +3,7 @@ package responses
 import (
 	"crypto/md5"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"github.com/tednaleid/ganda/config"
@@ -21,28 +22,12 @@ func StartResponseWorkers(responses <-chan *http.Response, context *execcontext.
 
 	for i := 1; i <= context.ResponseWorkers; i++ {
 		go func() {
-			/*
-				high level algorithm
-					- if we're saving files, we want each response to create it's own file and have an io.Writer
-					- if we're emitting to stdout, we've already got an io.Writer at context.Out
-					- this needs to be called per response, so we can't just pass in the io.Writer to the worker
-					- if we're emitting to stdout, we want to emit a \n between each non zero length response
-				if we're emitting a json-envelope
-					-  we want to emit part of the JSON up to the body, then emit the body function, then close the JSON
-					- if we're not emitting JSON envelope, no need to wrap it
-				separately, we want the response-body to take an io.writer from the above and be able to write to it
-					- create higher-order function that returns a function that takes a response and an io.Writer
-			*/
-
 			emitResponse := determineEmitResponseFn(context)
 
 			if context.WriteFiles {
-				// TODO change this so that it calls determineEmitResponseFn regardless of if it is saving or printing
-				// and then passes that responseFn to the worker we create
-
-				responseSavingWorker(responses, emitResponse, context)
+				responseSavingWorker(responses, context, emitResponse)
 			} else {
-				responsePrintingWorker(responses, emitResponse, context)
+				responsePrintingWorker(responses, context, emitResponse)
 			}
 			responseWaitGroup.Done()
 		}()
@@ -51,23 +36,43 @@ func StartResponseWorkers(responses <-chan *http.Response, context *execcontext.
 	return &responseWaitGroup
 }
 
-func responseSavingWorker(responses <-chan *http.Response, emitResponse emitResponseFn, context *execcontext.Context) {
+// creates a worker that takes responses off the channel and saves each one to a file
+// the directory path is based off the md5 hash of the url
+// the filename is the url with all non-alphanumeric characters replaced with dashes
+func responseSavingWorker(responses <-chan *http.Response, context *execcontext.Context, emitResponse emitResponseFn) {
 	specialCharactersRegexp := regexp.MustCompile("[^A-Za-z0-9]+")
 
 	responseWorker(responses, func(response *http.Response) {
 		filename := specialCharactersRegexp.ReplaceAllString(response.Request.URL.String(), "-")
-		// this should be changed to get an io.Writer for the file that we can pass in
+		writeableFile := createWritableFile(context.BaseDirectory, context.SubdirLength, filename)
+		defer writeableFile.WriteCloser.Close()
 
-		fullPath := saveBodyToFile(context.BaseDirectory, context.SubdirLength, filename, response.Body)
-		context.Logger.LogResponse(response.StatusCode, response.Request.URL.String()+" -> "+fullPath)
+		_, err := emitResponse(response, writeableFile.WriteCloser)
+
+		if err != nil {
+			context.Logger.LogError(err, response.Request.URL.String()+" -> "+writeableFile.FullPath)
+		} else {
+			context.Logger.LogResponse(response.StatusCode, response.Request.URL.String()+" -> "+writeableFile.FullPath)
+		}
 	})
 }
 
-func responsePrintingWorker(responses <-chan *http.Response, emitResponse emitResponseFn, context *execcontext.Context) {
+// creates a worker that takes responses off the channel and prints each one to stdout
+// if the JsonEnvelope flag is set, it will wrap the response in a JSON envelope
+// a newline will be emitted after each non-empty response
+func responsePrintingWorker(responses <-chan *http.Response, context *execcontext.Context, emitResponse emitResponseFn) {
 	out := context.Out
+	newline := []byte("\n")
 	responseWorker(responses, func(response *http.Response) {
-		context.Logger.LogResponse(response.StatusCode, response.Request.URL.String())
-		emitResponse(response, out)
+		bytesWritten, err := emitResponse(response, out)
+		if err != nil {
+			context.Logger.LogError(err, response.Request.URL.String())
+		} else {
+			context.Logger.LogResponse(response.StatusCode, response.Request.URL.String())
+			if bytesWritten > 0 {
+				out.Write(newline)
+			}
+		}
 	})
 }
 
@@ -81,7 +86,7 @@ func determineEmitResponseFn(context *execcontext.Context) emitResponseFn {
 	if context.JsonEnvelope {
 		// it matters what the body response function is:
 		// if it's raw, we want to just emit it
-		// if it's discard, we want to emit `null`. still need to call emitNothing so we close the body
+		// if it's discard, we want to emit `null`. still need to call emitNothingBody so we close the body
 		// if it's base64, we want to encapsulate it in quotes for a JSON string
 		// if it's escaped, we want to encapsulate it in quotes for a JSON string
 		// if it's sha256, we want to encapsulate it in quotes for a JSON string
@@ -104,11 +109,11 @@ func determineEmitBodyResponseFn(context *execcontext.Context) emitResponseFn {
 	case config.Sha256:
 		return emitSha256BodyFn()
 	case config.Discard:
-		return emitNothing
+		return emitNothingBody
 	case config.Escaped:
-		return emitNothing //TODO
+		return emitNothingBody //TODO
 	case config.Base64:
-		return emitNothing //TODO
+		return emitBase64Body
 	default:
 		panic(fmt.Sprintf("unknown response body type %s", context.ResponseBody))
 	}
@@ -138,7 +143,20 @@ func emitHashedBody(hasher hash.Hash, response *http.Response, out io.Writer) (w
 	return int64(n), err
 }
 
-func emitNothing(response *http.Response, out io.Writer) (written int64, err error) {
+func emitBase64Body(response *http.Response, out io.Writer) (written int64, err error) {
+	defer response.Body.Close()
+
+	encoder := base64.NewEncoder(base64.StdEncoding, out)
+	written, err = io.Copy(encoder, response.Body)
+	if err != nil {
+		return written, err
+	}
+
+	err = encoder.Close()
+	return written, err
+}
+
+func emitNothingBody(response *http.Response, out io.Writer) (written int64, err error) {
 	response.Body.Close()
 	return 0, nil
 }
@@ -179,21 +197,12 @@ func responseWorker(responses <-chan *http.Response, responseHandler func(*http.
 	}
 }
 
-func createWritableFile(baseDirectory string, subdirLength int64, filename string) io.WriteCloser {
-	directory := directoryForFile(baseDirectory, filename, subdirLength)
-	fullPath := directory + filename
-
-	file, err := os.Create(fullPath)
-	if err != nil {
-		panic(err)
-	}
-
-	return file
+type WritableFile struct {
+	FullPath    string
+	WriteCloser io.WriteCloser
 }
 
-func saveBodyToFile(baseDirectory string, subdirLength int64, filename string, body io.ReadCloser) string {
-	defer body.Close()
-
+func createWritableFile(baseDirectory string, subdirLength int64, filename string) *WritableFile {
 	directory := directoryForFile(baseDirectory, filename, subdirLength)
 	fullPath := directory + filename
 
@@ -201,14 +210,8 @@ func saveBodyToFile(baseDirectory string, subdirLength int64, filename string, b
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
 
-	_, err = io.Copy(file, body)
-	if err != nil {
-		panic(err)
-	}
-
-	return fullPath
+	return &WritableFile{FullPath: fullPath, WriteCloser: file}
 }
 
 func directoryForFile(baseDirectory string, filename string, subdirLength int64) string {

@@ -63,7 +63,7 @@ func TestInvalidWorkers(t *testing.T) {
 	}
 }
 
-func TestResponseBody(t *testing.T) {
+func TestResponseBodyFlags(t *testing.T) {
 	results, _ := ParseArgs([]string{"ganda"})
 	assert.NotNil(t, results)
 	assert.NotNil(t, results.context)

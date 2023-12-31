@@ -5,9 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/execcontext"
-	"io"
 	"net/http"
-	"strings"
 	"testing"
 )
 
@@ -19,13 +17,45 @@ func TestRawOutput(t *testing.T) {
 	responseFn := determineEmitResponseFn(context)
 	assert.NotNil(t, responseFn)
 
-	response, responseBody := mockResponseBody("hello world")
+	mockResponse := NewMockResponse("hello world")
 	writeCloser := NewMockWriteCloser()
 
-	responseFn(response, writeCloser)
+	responseFn(mockResponse.Response, writeCloser)
 
-	assert.True(t, responseBody.Closed)
+	assert.True(t, mockResponse.BodyClosed())
 	assert.Equal(t, "hello world", writeCloser.ToString())
+}
+
+func TestDiscardOutput(t *testing.T) {
+	context := &execcontext.Context{
+		ResponseBody: config.Discard,
+	}
+
+	responseFn := determineEmitResponseFn(context)
+	assert.NotNil(t, responseFn)
+
+	mockResponse := NewMockResponse("hello world")
+	out := NewMockWriteCloser()
+
+	responseFn(mockResponse.Response, out)
+	assert.True(t, mockResponse.BodyClosed())
+	assert.Equal(t, "", out.ToString())
+}
+
+func TestBase64Output(t *testing.T) {
+	context := &execcontext.Context{
+		ResponseBody: config.Base64,
+	}
+
+	responseFn := determineEmitResponseFn(context)
+	assert.NotNil(t, responseFn)
+
+	mockResponse := NewMockResponse("hello world")
+	out := NewMockWriteCloser()
+
+	responseFn(mockResponse.Response, out)
+	assert.True(t, mockResponse.BodyClosed())
+	assert.Equal(t, "aGVsbG8gd29ybGQ=", out.ToString())
 }
 
 func TestSha256Output(t *testing.T) {
@@ -36,34 +66,55 @@ func TestSha256Output(t *testing.T) {
 	responseFn := determineEmitResponseFn(context)
 	assert.NotNil(t, responseFn)
 
-	response, responseBody := mockResponseBody("hello world")
+	mockResponse := NewMockResponse("hello world")
 	out := NewMockWriteCloser()
 
-	responseFn(response, out)
+	responseFn(mockResponse.Response, out)
+	assert.True(t, mockResponse.BodyClosed())
 
-	assert.True(t, responseBody.Closed)
-	assert.Equal(t, "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447", out.ToString())
+	// if testing with "echo" be sure to use the -n flag to not include the newline
+	// echo -n "hello world" | shasum -a 256
+	// b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9  -
+	assert.Equal(t, "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9", out.ToString())
+
+	// ensure that when called a second time, we get the same answer and that the hasher can be reused
+	mockResponse2 := NewMockResponse("hello world")
+	out2 := NewMockWriteCloser()
+
+	responseFn(mockResponse2.Response, out2)
+	assert.True(t, mockResponse2.BodyClosed())
+	assert.Equal(t, "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9", out2.ToString())
 }
 
-func mockResponseBody(body string) (*http.Response, *MockReadCloser) {
-	responseBody := &MockReadCloser{ReadCloser: io.NopCloser(strings.NewReader(body)), Closed: false}
-	return &http.Response{
-		StatusCode: 200,
-		Body:       responseBody,
-	}, responseBody
+type MockResponse struct {
+	*http.Response
+	mockBody *MockReadCloser
+}
+
+func (mr *MockResponse) BodyClosed() bool {
+	return mr.mockBody.Closed
+}
+
+func NewMockResponse(body string) *MockResponse {
+	mockReadCloser := &MockReadCloser{
+		Reader: bytes.NewReader([]byte(body)),
+		Closed: false,
+	}
+	return &MockResponse{
+		Response: &http.Response{
+			Body: mockReadCloser,
+		},
+		mockBody: mockReadCloser,
+	}
 }
 
 type MockReadCloser struct {
-	ReadCloser io.ReadCloser
-	Closed     bool
+	*bytes.Reader
+	Closed bool
 }
 
-func (m *MockReadCloser) Read(p []byte) (n int, err error) {
-	return m.ReadCloser.Read(p)
-}
-
-func (m *MockReadCloser) Close() error {
-	m.Closed = true
+func (mrc *MockReadCloser) Close() error {
+	mrc.Closed = true
 	return nil
 }
 

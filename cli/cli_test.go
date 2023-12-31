@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/tednaleid/ganda/config"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -236,3 +237,94 @@ func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {
 		"Hello /bar\n",
 		"Response: 200 "+url+"\n")
 }
+
+func TestRawBody(t *testing.T) {
+	t.Parallel()
+	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "Hello ", r.URL.Path)
+	}))
+	defer server.Server.Close()
+
+	runResults, _ := RunApp([]string{"ganda", "-B", "raw"}, server.stubStdinUrl("bar"))
+	url := server.urlFor("bar")
+
+	runResults.assert(t,
+		"Hello /bar\n",
+		"Response: 200 "+url+"\n")
+}
+
+func TestBase64Body(t *testing.T) {
+	t.Parallel()
+	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "Hello ", r.URL.Path)
+	}))
+	defer server.Server.Close()
+
+	runResults, _ := RunApp([]string{"ganda", "-B", "base64"}, server.stubStdinUrl("bar"))
+	url := server.urlFor("bar")
+
+	runResults.assert(t,
+		"SGVsbG8gL2Jhcg==\n",
+		"Response: 200 "+url+"\n")
+}
+
+func TestDiscardBody(t *testing.T) {
+	t.Parallel()
+	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "Hello ", r.URL.Path)
+	}))
+	defer server.Server.Close()
+
+	runResults, _ := RunApp([]string{"ganda", "-B", "discard"}, server.stubStdinUrl("bar"))
+	url := server.urlFor("bar")
+
+	runResults.assert(t,
+		"",
+		"Response: 200 "+url+"\n")
+}
+
+func TestSha256Body(t *testing.T) {
+	t.Parallel()
+	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "Hello ", r.URL.Path)
+	}))
+	defer server.Server.Close()
+
+	runResults, _ := RunApp([]string{"ganda", "-B", "sha256"}, server.stubStdinUrl("bar"))
+	url := server.urlFor("bar")
+
+	runResults.assert(t,
+		"13a05f3ce0f3edc94bdeee3783c969dfb27c234b6dd98ce7fd004ffc69a45ece\n",
+		"Response: 200 "+url+"\n")
+}
+
+func TestResponseBody(t *testing.T) {
+	testCases := []struct {
+		name         string
+		responseBody config.ResponseBodyType
+		expected     string
+	}{
+		{"raw", config.Raw, "Hello /bar\n"},
+		{"discard", config.Discard, ""},
+		{"base64", config.Base64, "SGVsbG8gL2Jhcg==\n"},
+		{"sha256", config.Sha256, "13a05f3ce0f3edc94bdeee3783c969dfb27c234b6dd98ce7fd004ffc69a45ece\n"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprint(w, "Hello ", r.URL.Path)
+			}))
+			defer server.Server.Close()
+
+			runResults, _ := RunApp([]string{"ganda", "-B", tc.name}, server.stubStdinUrl("bar"))
+			url := server.urlFor("bar")
+
+			runResults.assert(t, tc.expected, "Response: 200 "+url+"\n")
+		})
+	}
+}
+
+// TODO start here: get the JSON version of the output working again
+
+// TODO test the file saving version of this
