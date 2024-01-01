@@ -1,6 +1,7 @@
 package responses
 
 import (
+	"bytes"
 	"crypto/md5"
 	"crypto/sha256"
 	"encoding/base64"
@@ -77,29 +78,77 @@ func responsePrintingWorker(responses <-chan *http.Response, context *execcontex
 }
 
 // takes a response and writes it to the writer, returns true if it wrote anything
-type emitResponseFn func(response *http.Response, out io.Writer) (written int64, err error)
+type emitResponseFn func(response *http.Response, out io.Writer) (bytesWritten int64, err error)
 
 // we might wrap the body response in a JSON envelope
 func determineEmitResponseFn(context *execcontext.Context) emitResponseFn {
 	bodyResponseFn := determineEmitBodyResponseFn(context)
 
 	if context.JsonEnvelope {
-		// it matters what the body response function is:
-		// if it's raw, we want to just emit it
-		// if it's discard, we want to emit `null`. still need to call emitNothingBody so we close the body
-		// if it's base64, we want to encapsulate it in quotes for a JSON string
-		// if it's escaped, we want to encapsulate it in quotes for a JSON string
-		// if it's sha256, we want to encapsulate it in quotes for a JSON string
-
-		//if context.DiscardBody {
-		//	return emitJsonMessagesWithoutBody
-		//} else if context.HashBody {
-		//	return emitJsonMessageSha256
-		//}
-		//return emitJsonMessages
+		return jsonEnvelopeResponseFn(bodyResponseFn, context)
 	}
 
 	return bodyResponseFn
+}
+
+// returns a function that will emit the JSON envelope around the response body
+// the JSON envelope will include the url and http code along with the response body
+// TODO: add the request values and the response headers to the JSON envelope
+func jsonEnvelopeResponseFn(bodyResponseFn emitResponseFn, context *execcontext.Context) emitResponseFn {
+	return func(response *http.Response, out io.Writer) (bytesWritten int64, err error) {
+		var bodyBytesWritten int64
+
+		// everything before emitting the body response
+		bytesWritten, err = appendString(0, out, fmt.Sprintf(
+			"{ \"url\": \"%s\", \"code\": %d, \"body\": ",
+			response.Request.URL.String(),
+			response.StatusCode,
+		))
+		if err != nil {
+			return bytesWritten, err
+		}
+
+		// emit the body response
+		if context.ResponseBody == config.Discard || context.ResponseBody == config.Raw {
+			// no need to wrap either of these in quotes, Raw is assumed to be JSON
+			bodyBytesWritten, err = bodyResponseFn(response, out)
+			bytesWritten += bodyBytesWritten
+		} else {
+			// for all other ResponseBody types we want to encapsulate the body in quotes if it exists,
+			// so we need to use a temp buffer to see if there's anything to quote
+			tempBuffer := new(bytes.Buffer)
+			bodyBytesWritten, err = bodyResponseFn(response, tempBuffer)
+			if err == nil && bodyBytesWritten > 0 {
+				bytesWritten, err = appendString(bytesWritten, out, "\""+tempBuffer.String()+"\"")
+			}
+		}
+
+		if err != nil {
+			return bytesWritten, err
+		}
+
+		// if we didn't write anything for the body response, we emit a `null`
+		if bodyBytesWritten == 0 {
+			bytesWritten, err = appendString(bytesWritten, out, "null")
+			if err != nil {
+				return bytesWritten, err
+			}
+		}
+
+		// close out the JSON envelope
+		bytesWritten, err = appendString(bytesWritten, out, " }")
+		if err != nil {
+			return bytesWritten, err
+		}
+
+		return bytesWritten, err
+	}
+}
+
+// writes a string to the writer and updates the number of bytes written
+func appendString(bytesPreviouslyWritten int64, out io.Writer, s string) (int64, error) {
+	appendedBytes, err := fmt.Fprint(out, s)
+	return bytesPreviouslyWritten + int64(appendedBytes), err
 }
 
 func determineEmitBodyResponseFn(context *execcontext.Context) emitResponseFn {
@@ -119,23 +168,25 @@ func determineEmitBodyResponseFn(context *execcontext.Context) emitResponseFn {
 	}
 }
 
-func emitRawBody(response *http.Response, out io.Writer) (written int64, err error) {
+func emitRawBody(response *http.Response, out io.Writer) (bytesWritten int64, err error) {
 	defer response.Body.Close()
 	return io.Copy(out, response.Body)
 }
 
-func emitSha256BodyFn() func(response *http.Response, out io.Writer) (written int64, err error) {
+func emitSha256BodyFn() func(response *http.Response, out io.Writer) (bytesWritten int64, err error) {
 	hasher := sha256.New()
-	return func(response *http.Response, out io.Writer) (written int64, err error) {
+	return func(response *http.Response, out io.Writer) (bytesWritten int64, err error) {
 		return emitHashedBody(hasher, response, out)
 	}
 }
 
-func emitHashedBody(hasher hash.Hash, response *http.Response, out io.Writer) (written int64, err error) {
+func emitHashedBody(hasher hash.Hash, response *http.Response, out io.Writer) (bytesWritten int64, err error) {
 	defer response.Body.Close()
 
 	hasher.Reset()
-	if _, err := io.Copy(hasher, response.Body); err != nil {
+
+	hashedBytesWritten, err := io.Copy(hasher, response.Body)
+	if err != nil || hashedBytesWritten == 0 {
 		return 0, err
 	}
 
@@ -143,52 +194,27 @@ func emitHashedBody(hasher hash.Hash, response *http.Response, out io.Writer) (w
 	return int64(n), err
 }
 
-func emitBase64Body(response *http.Response, out io.Writer) (written int64, err error) {
+func emitBase64Body(response *http.Response, out io.Writer) (bytesWritten int64, err error) {
 	defer response.Body.Close()
 
 	encoder := base64.NewEncoder(base64.StdEncoding, out)
-	written, err = io.Copy(encoder, response.Body)
+	bytesWritten, err = io.Copy(encoder, response.Body)
 	if err != nil {
-		return written, err
+		return bytesWritten, err
 	}
 
 	err = encoder.Close()
-	return written, err
+	return bytesWritten, err
 }
 
-func emitNothingBody(response *http.Response, out io.Writer) (written int64, err error) {
+func emitNothingBody(response *http.Response, out io.Writer) (bytesWritten int64, err error) {
 	response.Body.Close()
 	return 0, nil
 }
 
-//func emitJsonMessages(response *http.Response, out io.Writer) {
-//	defer response.Body.Close()
-//	buf := new(bytes.Buffer)
-//	buf.ReadFrom(response.Body)
-//
-//	if buf.Len() > 0 {
-//		fmt.Fprintf(out, "{ \"url\": \"%s\", \"code\": %d, \"length\": %d, \"body\": %s }\n", response.Request.URL.String(), response.StatusCode, buf.Len(), buf)
-//	} else {
-//		fmt.Fprintf(out, "{ \"url\": \"%s\", \"code\": %d, \"length\": %d, \"body\": null }\n", response.Request.URL.String(), response.StatusCode, 0)
-//	}
-//}
-
-//func emitJsonMessagesWithoutBody(response *http.Response, out io.Writer) (written int64, err error) {
+//func emitJsonMessagesWithoutBody(response *http.Response, out io.Writer) (bytesWritten int64, err error) {
 //	response.Body.Close()
 //	return fmt.Fprintf(out, "{ \"url\": \"%s\", \"code\": %d}\n", response.Request.URL.String(), response.StatusCode)
-//}
-//
-//func emitJsonMessageSha256(response *http.Response, out io.Writer) bool {
-//	defer response.Body.Close()
-//	buf := new(bytes.Buffer)
-//	buf.ReadFrom(response.Body)
-//
-//	if buf.Len() > 0 {
-//		fmt.Fprintf(out, "{ \"url\": \"%s\", \"code\": %d, \"length\": %d, \"body\": \"%x\" }\n", response.Request.URL.String(), response.StatusCode, buf.Len(), sha256.Sum256(buf.Bytes()))
-//	} else {
-//		fmt.Fprintf(out, "{ \"url\": \"%s\", \"code\": %d, \"length\": %d, \"body\": null }\n", response.Request.URL.String(), response.StatusCode, 0)
-//	}
-//	return true
 //}
 
 func responseWorker(responses <-chan *http.Response, responseHandler func(*http.Response)) {

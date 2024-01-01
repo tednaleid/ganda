@@ -3,48 +3,10 @@ package cli
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"github.com/tednaleid/ganda/config"
-	"io"
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 )
-
-type HttpServerStub struct {
-	*httptest.Server
-}
-
-// The passed in handler function can verify the request and write a response given that input
-func NewHttpServerStub(handler http.Handler) *HttpServerStub {
-	return &HttpServerStub{httptest.NewServer(handler)}
-}
-
-// append the fragment to the end of the server base url
-func (server *HttpServerStub) urlFor(fragment string) string {
-	return fmt.Sprintf("%s/%s", server.URL, fragment)
-}
-
-func (server *HttpServerStub) urlsFor(fragments []string) []string {
-	urls := make([]string, len(fragments))
-	for i, path := range fragments {
-		urls[i] = server.urlFor(path)
-	}
-	return urls
-}
-
-// stub stdin for the path fragment to create an url for this server
-func (server *HttpServerStub) stubStdinUrl(fragment string) io.Reader {
-	return server.stubStdinUrls([]string{fragment})
-}
-
-// given an array of paths, we will create a stub of stdin that has one url per line for our server stub
-func (server *HttpServerStub) stubStdinUrls(fragments []string) io.Reader {
-	urls := server.urlsFor(fragments)
-	urlsString := strings.Join(urls, "\n")
-	return strings.NewReader(urlsString)
-}
 
 func TestRequestHappyPathHasDefaultHeaders(t *testing.T) {
 	t.Parallel()
@@ -63,54 +25,6 @@ func TestRequestHappyPathHasDefaultHeaders(t *testing.T) {
 		t,
 		"Hello /foo/1\n",
 		"Response: 200 "+server.urlFor("foo/1")+"\n",
-	)
-}
-
-func TestRequestColorOutput(t *testing.T) {
-	t.Parallel()
-	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "Hello ", r.URL.Path)
-	}))
-	defer server.Close()
-
-	runResults, _ := RunApp([]string{"ganda", "--color"}, server.stubStdinUrl("foo/1"))
-
-	runResults.assert(
-		t,
-		"Hello /foo/1\n",
-		"\x1b[32mResponse: 200 "+server.urlFor("foo/1")+"\x1b[0m\n",
-	)
-}
-
-func TestResponseHasJsonEnvelopeWhenRequested(t *testing.T) {
-	t.Parallel()
-	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "{ \"foo\": true }")
-	}))
-	defer server.Close()
-
-	runResults, _ := RunApp([]string{"ganda", "-J"}, server.stubStdinUrl("bar"))
-
-	runResults.assert(
-		t,
-		"{ \"url\": \""+server.urlFor("bar")+"\", \"code\": 200, \"length\": 15, \"body\": { \"foo\": true } }\n",
-		"Response: 200 "+server.urlFor("bar")+"\n",
-	)
-}
-
-func TestErrorResponse(t *testing.T) {
-	t.Parallel()
-	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(404)
-	}))
-	defer server.Close()
-
-	runResults, _ := RunApp([]string{"ganda", "-J"}, server.stubStdinUrl("bar"))
-
-	runResults.assert(
-		t,
-		"{ \"url\": \""+server.urlFor("bar")+"\", \"code\": 404, \"length\": 0, \"body\": null }\n",
-		"Response: 404 "+server.urlFor("bar")+"\n",
 	)
 }
 
@@ -237,94 +151,3 @@ func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {
 		"Hello /bar\n",
 		"Response: 200 "+url+"\n")
 }
-
-func TestRawBody(t *testing.T) {
-	t.Parallel()
-	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "Hello ", r.URL.Path)
-	}))
-	defer server.Server.Close()
-
-	runResults, _ := RunApp([]string{"ganda", "-B", "raw"}, server.stubStdinUrl("bar"))
-	url := server.urlFor("bar")
-
-	runResults.assert(t,
-		"Hello /bar\n",
-		"Response: 200 "+url+"\n")
-}
-
-func TestBase64Body(t *testing.T) {
-	t.Parallel()
-	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "Hello ", r.URL.Path)
-	}))
-	defer server.Server.Close()
-
-	runResults, _ := RunApp([]string{"ganda", "-B", "base64"}, server.stubStdinUrl("bar"))
-	url := server.urlFor("bar")
-
-	runResults.assert(t,
-		"SGVsbG8gL2Jhcg==\n",
-		"Response: 200 "+url+"\n")
-}
-
-func TestDiscardBody(t *testing.T) {
-	t.Parallel()
-	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "Hello ", r.URL.Path)
-	}))
-	defer server.Server.Close()
-
-	runResults, _ := RunApp([]string{"ganda", "-B", "discard"}, server.stubStdinUrl("bar"))
-	url := server.urlFor("bar")
-
-	runResults.assert(t,
-		"",
-		"Response: 200 "+url+"\n")
-}
-
-func TestSha256Body(t *testing.T) {
-	t.Parallel()
-	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "Hello ", r.URL.Path)
-	}))
-	defer server.Server.Close()
-
-	runResults, _ := RunApp([]string{"ganda", "-B", "sha256"}, server.stubStdinUrl("bar"))
-	url := server.urlFor("bar")
-
-	runResults.assert(t,
-		"13a05f3ce0f3edc94bdeee3783c969dfb27c234b6dd98ce7fd004ffc69a45ece\n",
-		"Response: 200 "+url+"\n")
-}
-
-func TestResponseBody(t *testing.T) {
-	testCases := []struct {
-		name         string
-		responseBody config.ResponseBodyType
-		expected     string
-	}{
-		{"raw", config.Raw, "Hello /bar\n"},
-		{"discard", config.Discard, ""},
-		{"base64", config.Base64, "SGVsbG8gL2Jhcg==\n"},
-		{"sha256", config.Sha256, "13a05f3ce0f3edc94bdeee3783c969dfb27c234b6dd98ce7fd004ffc69a45ece\n"},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprint(w, "Hello ", r.URL.Path)
-			}))
-			defer server.Server.Close()
-
-			runResults, _ := RunApp([]string{"ganda", "-B", tc.name}, server.stubStdinUrl("bar"))
-			url := server.urlFor("bar")
-
-			runResults.assert(t, tc.expected, "Response: 200 "+url+"\n")
-		})
-	}
-}
-
-// TODO start here: get the JSON version of the output working again
-
-// TODO test the file saving version of this

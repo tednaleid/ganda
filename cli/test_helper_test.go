@@ -2,12 +2,17 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/tednaleid/ganda/execcontext"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
+
+// test helper structs and functions, no actual tests
 
 var testBuildInfo = BuildInfo{Version: "testing", Commit: "123abc", Date: "2023-12-20"}
 
@@ -47,4 +52,38 @@ func runApp(args []string, in io.Reader, runBlock func(context *execcontext.Cont
 
 	err := RunCommand(testBuildInfo, args, in, stderr, stdout, processRequests)
 	return RunResults{stderr.String(), stdout.String(), resultContext}, err
+}
+
+type HttpServerStub struct {
+	*httptest.Server
+}
+
+// The passed in handler function can verify the request and write a response given that input
+func NewHttpServerStub(handler http.Handler) *HttpServerStub {
+	return &HttpServerStub{httptest.NewServer(handler)}
+}
+
+// append the fragment to the end of the server base url
+func (server *HttpServerStub) urlFor(fragment string) string {
+	return fmt.Sprintf("%s/%s", server.URL, fragment)
+}
+
+func (server *HttpServerStub) urlsFor(fragments []string) []string {
+	urls := make([]string, len(fragments))
+	for i, path := range fragments {
+		urls[i] = server.urlFor(path)
+	}
+	return urls
+}
+
+// stub stdin for the path fragment to create an url for this server
+func (server *HttpServerStub) stubStdinUrl(fragment string) io.Reader {
+	return server.stubStdinUrls([]string{fragment})
+}
+
+// given an array of paths, we will create a stub of stdin that has one url per line for our server stub
+func (server *HttpServerStub) stubStdinUrls(fragments []string) io.Reader {
+	urls := server.urlsFor(fragments)
+	urlsString := strings.Join(urls, "\n")
+	return strings.NewReader(urlsString)
 }
