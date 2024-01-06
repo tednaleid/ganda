@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/execcontext"
@@ -160,7 +161,7 @@ func determineEmitBodyResponseFn(context *execcontext.Context) emitResponseFn {
 	case config.Discard:
 		return emitNothingBody
 	case config.Escaped:
-		return emitNothingBody //TODO
+		return emitEscapedBodyFn()
 	case config.Base64:
 		return emitBase64Body
 	default:
@@ -207,15 +208,49 @@ func emitBase64Body(response *http.Response, out io.Writer) (bytesWritten int64,
 	return bytesWritten, err
 }
 
+func emitEscapedBodyFn() func(response *http.Response, out io.Writer) (bytesWritten int64, err error) {
+	buffer := new(bytes.Buffer)
+	return func(response *http.Response, out io.Writer) (bytesWritten int64, err error) {
+		return emitEscapedBody(buffer, response, out)
+	}
+}
+
+func emitEscapedBody(buffer *bytes.Buffer, response *http.Response, out io.Writer) (bytesWritten int64, err error) {
+	defer response.Body.Close()
+
+	buffer.Reset()
+
+	_, err = io.Copy(buffer, response.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	// the json encoder doesn't support emitting the number of bytes that were written to the writer, wrap it to keep track
+	countingWriter := &CountingWriter{Writer: out}
+	encoder := json.NewEncoder(countingWriter)
+	err = encoder.Encode(buffer.String())
+	if err != nil {
+		return countingWriter.Count, err
+	}
+
+	return countingWriter.Count, nil
+}
+
+type CountingWriter struct {
+	io.Writer
+	Count int64
+}
+
+func (cw *CountingWriter) Write(p []byte) (n int, err error) {
+	n, err = cw.Writer.Write(p)
+	cw.Count += int64(n)
+	return n, err
+}
+
 func emitNothingBody(response *http.Response, out io.Writer) (bytesWritten int64, err error) {
 	response.Body.Close()
 	return 0, nil
 }
-
-//func emitJsonMessagesWithoutBody(response *http.Response, out io.Writer) (bytesWritten int64, err error) {
-//	response.Body.Close()
-//	return fmt.Fprintf(out, "{ \"url\": \"%s\", \"code\": %d}\n", response.Request.URL.String(), response.StatusCode)
-//}
 
 func responseWorker(responses <-chan *http.Response, responseHandler func(*http.Response)) {
 	for response := range responses {

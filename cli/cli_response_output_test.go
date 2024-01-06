@@ -23,6 +23,22 @@ func TestRequestColorOutput(t *testing.T) {
 	)
 }
 
+func TestSilentOutput(t *testing.T) {
+	t.Parallel()
+	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "Hello ", r.URL.Path)
+	}))
+	defer server.Close()
+
+	runResults, _ := RunApp([]string{"ganda", "-s"}, server.stubStdinUrl("foo/1"))
+
+	runResults.assert(
+		t,
+		"Hello /foo/1\n",
+		"",
+	)
+}
+
 func TestResponseBody(t *testing.T) {
 	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Hello ", r.URL.Path)
