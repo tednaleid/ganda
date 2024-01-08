@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/tednaleid/ganda/execcontext"
 	"github.com/tednaleid/ganda/logger"
+	"github.com/tednaleid/ganda/parser"
+	"math"
 	"net/http"
 	"sync"
 	"time"
@@ -33,13 +35,21 @@ func NewHttpClient(context *execcontext.Context) *HttpClient {
 	}
 }
 
-func StartRequestWorkers(requests <-chan *http.Request, responses chan<- *http.Response, context *execcontext.Context) *sync.WaitGroup {
+func StartRequestWorkers(requestsWithContext <-chan parser.RequestWithContext, responses chan<- *http.Response, context *execcontext.Context) *sync.WaitGroup {
 	var requestWaitGroup sync.WaitGroup
 	requestWaitGroup.Add(context.RequestWorkers)
 
+	var rateLimitTicker *time.Ticker
+
+	// don't throttle if we're not limiting the number of requests per second
+	if context.ThrottlePerSecond != math.MaxInt32 {
+		rateLimitTicker = time.NewTicker(time.Second / time.Duration(context.ThrottlePerSecond))
+		defer rateLimitTicker.Stop()
+	}
+
 	for i := 1; i <= context.RequestWorkers; i++ {
 		go func() {
-			requestWorker(context, requests, responses)
+			requestWorker(context, requestsWithContext, responses, rateLimitTicker)
 			requestWaitGroup.Done()
 		}()
 	}
@@ -47,27 +57,39 @@ func StartRequestWorkers(requests <-chan *http.Request, responses chan<- *http.R
 	return &requestWaitGroup
 }
 
-func requestWorker(context *execcontext.Context, requests <-chan *http.Request, responses chan<- *http.Response) {
+func requestWorker(context *execcontext.Context, requestsWithContext <-chan parser.RequestWithContext, responses chan<- *http.Response, rateLimitTicker *time.Ticker) {
 	httpClient := NewHttpClient(context)
-	for request := range requests {
 
-		finalResponse, err := requestWithRetry(httpClient, request, context.BaseRetryDelayDuration, 0)
+	for requestWithContext := range requestsWithContext {
+		if rateLimitTicker != nil {
+			<-rateLimitTicker.C // wait for the next tick to send the request
+		}
+
+		finalResponse, err := requestWithRetry(httpClient, requestWithContext, context.BaseRetryDelayDuration)
 
 		if err == nil {
 			responses <- finalResponse
-		} else {
-			httpClient.Logger.LogError(err, request.URL.String())
 		}
 	}
 }
 
-func requestWithRetry(httpClient *HttpClient, request *http.Request, baseRetryDelay time.Duration, previouslyFailed int64) (*http.Response, error) {
-	response, err := httpClient.Client.Do(request)
+func requestWithRetry(
+	httpClient *HttpClient,
+	requestWithContext parser.RequestWithContext,
+	baseRetryDelay time.Duration,
+) (*http.Response, error) {
+	var response *http.Response
+	var err error
 
-	if previouslyFailed < httpClient.MaxRetries && (err != nil || response.StatusCode >= 500) {
-		failed := previouslyFailed + 1
+	for attempts := int64(1); ; attempts++ {
+		response, err = httpClient.Client.Do(requestWithContext.Request)
 
-		message := fmt.Sprintf("%s (%d)", request.URL.String(), failed)
+		if err == nil && response.StatusCode < 500 {
+			// return successful response or non-server error, we don't retry those
+			return response, nil
+		}
+
+		message := requestWithContext.Request.URL.String()
 
 		if err == nil {
 			httpClient.Logger.LogResponse(response.StatusCode, message)
@@ -75,11 +97,11 @@ func requestWithRetry(httpClient *HttpClient, request *http.Request, baseRetryDe
 			httpClient.Logger.LogError(err, message)
 		}
 
-		// delay before retrying, exponential backoff, start with 1x the base retry delay
-		time.Sleep(baseRetryDelay * time.Duration(2^(failed-1)))
+		if attempts > httpClient.MaxRetries {
+			return response, fmt.Errorf("maximum number of retries (%d) reached for request", httpClient.MaxRetries)
+		}
 
-		return requestWithRetry(httpClient, request, baseRetryDelay, failed)
+		time.Sleep(baseRetryDelay * time.Duration(2^attempts))
 	}
 
-	return response, err
 }

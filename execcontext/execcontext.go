@@ -15,7 +15,6 @@ type Context struct {
 	BaseDirectory          string
 	BaseRetryDelayDuration time.Duration
 	ConnectTimeoutDuration time.Duration
-	DataTemplate           string
 	DiscardBody            bool
 	HashBody               bool
 	In                     io.Reader
@@ -41,7 +40,6 @@ func New(conf *config.Config, in io.Reader, stderr io.Writer, stdout io.Writer) 
 		BaseDirectory:          conf.BaseDirectory,
 		BaseRetryDelayDuration: time.Duration(conf.BaseRetryDelayMillis) * time.Millisecond,
 		ConnectTimeoutDuration: time.Duration(conf.ConnectTimeoutMillis) * time.Millisecond,
-		DataTemplate:           conf.DataTemplate,
 		DiscardBody:            conf.DiscardBody,
 		HashBody:               conf.HashBody,
 		In:                     in,

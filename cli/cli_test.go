@@ -68,11 +68,11 @@ func TestRetryEnabledShouldRetry5XX(t *testing.T) {
 	runResults.assert(
 		t,
 		"Retried request\n",
-		"Response: 500 "+url+" (1)\nResponse: 200 "+url+"\n",
+		"Response: 500 "+url+"\nResponse: 200 "+url+"\n",
 	)
 }
 
-func TestRunningOutOfRetriesShouldShowError(t *testing.T) {
+func TestRunningOutOfRetriesShouldStopProcessing(t *testing.T) {
 	t.Parallel()
 	requests := 0
 	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -89,7 +89,7 @@ func TestRunningOutOfRetriesShouldShowError(t *testing.T) {
 	runResults.assert(
 		t,
 		"",
-		"Response: 500 "+url+" (1)\nResponse: 500 "+url+" (2)\nResponse: 500 "+url+"\n",
+		"Response: 500 "+url+"\nResponse: 500 "+url+"\nResponse: 500 "+url+"\n",
 	)
 }
 
@@ -131,7 +131,7 @@ func TestRetryEnabledShouldRetryTimeout(t *testing.T) {
 	//assert.Equal(t, 2, requestCount, "expected a second request")
 	runResults.assert(t,
 		"Request 2\n",
-		url+" (1) Error: Get \""+url+"\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\nResponse: 200 "+url+"\n")
+		url+" Error: Get \""+url+"\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\nResponse: 200 "+url+"\n")
 }
 
 func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {

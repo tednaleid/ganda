@@ -2,79 +2,92 @@ package parser
 
 import (
 	"bufio"
-	"fmt"
+	"encoding/csv"
 	"github.com/tednaleid/ganda/config"
-	"github.com/tednaleid/ganda/execcontext"
 	"io"
 	"net/http"
-	"strings"
-	"time"
 )
 
-const MaxTokenSize = 1024 * 1024 * 1024
+type InputType int
 
-func bufferedScanner(reader io.Reader) *bufio.Scanner {
-	s := bufio.NewScanner(reader)
-	s.Buffer(make([]byte, 1024*2), MaxTokenSize)
-	return s
+const (
+	Unknown InputType = iota
+	Urls
+	JsonLines
+)
+
+type RequestWithContext struct {
+	Request        *http.Request
+	RequestContext interface{}
 }
 
-func SendRequests(context *execcontext.Context, requests chan<- *http.Request) {
-	var body io.Reader = nil
-	var url string
-	requestScanner := bufferedScanner(context.In)
-	throttleRequestsPerSecond := context.ThrottlePerSecond
-	count := int64(0)
-	throttle := time.Tick(time.Second)
+func SendRequests(
+	requestsWithContext chan<- RequestWithContext,
+	in io.Reader,
+	requestMethod string,
+	staticHeaders []config.RequestHeader,
+) {
+	reader := bufio.NewReader(in)
+	inputType, _ := determineInputType(reader)
 
-	for requestScanner.Scan() {
-		count++
-		if count%throttleRequestsPerSecond == 0 {
-			<-throttle
+	if inputType == Urls {
+		SendUrlsRequests(requestsWithContext, reader, requestMethod, staticHeaders)
+	} else if inputType == JsonLines {
+		SendJsonLinesRequests(requestsWithContext, reader, requestMethod, staticHeaders)
+	}
+}
+
+// Each line is an URL and optionally some CSV context that can be passed through
+// an emitted along with the response output
+func SendUrlsRequests(
+	requestsWithContext chan<- RequestWithContext,
+	reader *bufio.Reader,
+	requestMethod string,
+	staticHeaders []config.RequestHeader,
+) {
+	csvReader := csv.NewReader(reader)
+
+	for {
+		record, err := csvReader.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			// TODO handle more gracefully when CSV isn't well formed
+			panic(err)
 		}
 
-		if context.DataTemplate == "" {
-			var text = requestScanner.Text()
-			url, body = ParseUrlAndOptionalBody(text)
-		} else {
-			url, body = ParseTemplatedInput(requestScanner.Text(), context.DataTemplate)
+		if len(record) > 0 {
+			url := record[0]
+			request := createRequest(url, nil, requestMethod, staticHeaders)
+			requestsWithContext <- RequestWithContext{Request: request, RequestContext: record[1:]}
 		}
-
-		request := createRequest(url, body, context.RequestMethod, context.RequestHeaders)
-		requests <- request
 	}
 }
 
-func ParseUrlAndOptionalBody(input string) (string, io.Reader) {
-	tokens := strings.SplitN(input, " ", 2)
+func SendJsonLinesRequests(
+	requestsWithContext chan<- RequestWithContext,
+	reader *bufio.Reader,
+	requestMethod string,
+	staticHeaders []config.RequestHeader,
+) {
+	// TODO
 
-	url := tokens[0]
-
-	if len(tokens) == 1 {
-		return url, nil // no body, just an url
-	}
-
-	return url, strings.NewReader(tokens[1])
 }
 
-// input string should be an url followed by space delimited values that will be passed to the Sprintf function
-// where it will replace the "%s" with strings
-func ParseTemplatedInput(input string, dataTemplate string) (string, io.Reader) {
-	tokens := strings.Split(input, " ")
+// current assumption is that the first character is '{' for a stream of json lines,
+// otherwise it's a stream of urls
+func determineInputType(bufferedReader *bufio.Reader) (InputType, error) {
+	initialByte, err := bufferedReader.Peek(1)
 
-	url := tokens[0]
-
-	if len(tokens) == 1 {
-		return url, strings.NewReader(dataTemplate) // just an url, static body
+	if err != nil {
+		return Unknown, err
 	}
 
-	// Sprintf wants a []interface{} which isn't compatible with a []string; see: https://golang.org/doc/faq#convert_slice_of_interface
-	bodyTokens := make([]interface{}, len(tokens)-1)
-	for i, value := range tokens[1:] {
-		bodyTokens[i] = value
+	if initialByte[0] == '{' {
+		return JsonLines, nil
 	}
 
-	return url, strings.NewReader(fmt.Sprintf(dataTemplate, bodyTokens...))
+	return Urls, nil
 }
 
 func createRequest(url string, body io.Reader, requestMethod string, requestHeaders []config.RequestHeader) *http.Request {

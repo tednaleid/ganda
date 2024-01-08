@@ -209,15 +209,15 @@ func RunCommand(
 }
 
 func ProcessRequests(context *execcontext.Context) {
-	requestsChannel := make(chan *http.Request)
+	requestsWithContextChannel := make(chan parser.RequestWithContext)
 	responsesChannel := make(chan *http.Response)
 
-	requestWaitGroup := requests.StartRequestWorkers(requestsChannel, responsesChannel, context)
+	requestWaitGroup := requests.StartRequestWorkers(requestsWithContextChannel, responsesChannel, context)
 	responseWaitGroup := responses.StartResponseWorkers(responsesChannel, context)
 
-	parser.SendRequests(context, requestsChannel)
+	parser.SendRequests(requestsWithContextChannel, context.In, context.RequestMethod, context.RequestHeaders)
 
-	close(requestsChannel)
+	close(requestsWithContextChannel)
 	requestWaitGroup.Wait()
 
 	close(responsesChannel)
