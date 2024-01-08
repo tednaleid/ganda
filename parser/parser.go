@@ -46,6 +46,8 @@ func SendUrlsRequests(
 	staticHeaders []config.RequestHeader,
 ) {
 	csvReader := csv.NewReader(reader)
+	csvReader.Comma = '\t'
+	csvReader.FieldsPerRecord = -1
 
 	for {
 		record, err := csvReader.Read()
