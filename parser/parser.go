@@ -26,15 +26,15 @@ func SendRequests(
 	in io.Reader,
 	requestMethod string,
 	staticHeaders []config.RequestHeader,
-) {
+) error {
 	reader := bufio.NewReader(in)
 	inputType, _ := determineInputType(reader)
 
-	if inputType == Urls {
-		SendUrlsRequests(requestsWithContext, reader, requestMethod, staticHeaders)
-	} else if inputType == JsonLines {
-		SendJsonLinesRequests(requestsWithContext, reader, requestMethod, staticHeaders)
+	if inputType == JsonLines {
+		return SendJsonLinesRequests(requestsWithContext, reader, requestMethod, staticHeaders)
 	}
+
+	return SendUrlsRequests(requestsWithContext, reader, requestMethod, staticHeaders)
 }
 
 // Each line is an URL and optionally some CSV context that can be passed through
@@ -44,7 +44,7 @@ func SendUrlsRequests(
 	reader *bufio.Reader,
 	requestMethod string,
 	staticHeaders []config.RequestHeader,
-) {
+) error {
 	csvReader := csv.NewReader(reader)
 	csvReader.Comma = '\t'
 	csvReader.FieldsPerRecord = -1
@@ -54,8 +54,7 @@ func SendUrlsRequests(
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			// TODO handle more gracefully when CSV isn't well formed
-			panic(err)
+			return err
 		}
 
 		if len(record) > 0 {
@@ -64,6 +63,7 @@ func SendUrlsRequests(
 			requestsWithContext <- RequestWithContext{Request: request, RequestContext: record[1:]}
 		}
 	}
+	return nil
 }
 
 func SendJsonLinesRequests(
@@ -71,9 +71,10 @@ func SendJsonLinesRequests(
 	reader *bufio.Reader,
 	requestMethod string,
 	staticHeaders []config.RequestHeader,
-) {
+) error {
 	// TODO
 
+	return nil
 }
 
 // current assumption is that the first character is '{' for a stream of json lines,

@@ -42,7 +42,7 @@ func TestSendGetRequestUrlsHaveDefaultHeaders(t *testing.T) {
 func TestSendRequestsHasRaggedRequestContext(t *testing.T) {
 	t.Parallel()
 
-	requestsWithContext := make(chan parser.RequestWithContext)
+	requestsWithContext := make(chan parser.RequestWithContext, 3)
 	defer close(requestsWithContext)
 
 	// we allow ragged numbers of fields in the TSV input
@@ -57,7 +57,7 @@ func TestSendRequestsHasRaggedRequestContext(t *testing.T) {
 
 	var in = trimmedInputReader(inputLines)
 
-	go parser.SendRequests(requestsWithContext, in, "GET", []config.RequestHeader{})
+	parser.SendRequests(requestsWithContext, in, "GET", []config.RequestHeader{})
 
 	expectedResults := []struct {
 		url     string
@@ -77,6 +77,22 @@ func TestSendRequestsHasRaggedRequestContext(t *testing.T) {
 		assert.Equal(t, expectedResult.context, requestContext, "expected context")
 	}
 
+}
+
+func TestSendRequestsHasMalformedInput(t *testing.T) {
+	t.Parallel()
+
+	requestsWithContext := make(chan parser.RequestWithContext, 1)
+	defer close(requestsWithContext)
+
+	inputLines := `https://ex.com/bar	foo	"quoted content	missing terminating quote`
+
+	var in = trimmedInputReader(inputLines)
+
+	err := parser.SendRequests(requestsWithContext, in, "GET", []config.RequestHeader{})
+
+	assert.NotNil(t, err, "expected error")
+	assert.Equal(t, err.Error(), "parse error on line 1, column 65: extraneous or missing \" in quoted-field")
 }
 
 func inputReader(urls []string) io.Reader {

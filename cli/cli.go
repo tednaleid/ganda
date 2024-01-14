@@ -215,7 +215,11 @@ func ProcessRequests(context *execcontext.Context) {
 	requestWaitGroup := requests.StartRequestWorkers(requestsWithContextChannel, responsesChannel, context)
 	responseWaitGroup := responses.StartResponseWorkers(responsesChannel, context)
 
-	parser.SendRequests(requestsWithContextChannel, context.In, context.RequestMethod, context.RequestHeaders)
+	err := parser.SendRequests(requestsWithContextChannel, context.In, context.RequestMethod, context.RequestHeaders)
+
+	if err != nil {
+		context.Logger.LogError(err, "error parsing requests")
+	}
 
 	close(requestsWithContextChannel)
 	requestWaitGroup.Wait()
