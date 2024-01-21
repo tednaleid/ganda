@@ -3,6 +3,8 @@ package parser
 import (
 	"bufio"
 	"encoding/csv"
+	"encoding/json"
+	"fmt"
 	"github.com/tednaleid/ganda/config"
 	"io"
 	"net/http"
@@ -66,15 +68,71 @@ func SendUrlsRequests(
 	return nil
 }
 
+type JsonLine struct {
+	URL     string            `json:"url"`
+	Method  string            `json:"method"`
+	Context interface{}       `json:"context"`
+	Headers map[string]string `json:"headers"`
+}
+
 func SendJsonLinesRequests(
 	requestsWithContext chan<- RequestWithContext,
 	reader *bufio.Reader,
 	requestMethod string,
 	staticHeaders []config.RequestHeader,
 ) error {
-	// TODO
+	scanner := bufio.NewScanner(reader)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		var jsonLine JsonLine
+
+		err := json.Unmarshal([]byte(line), &jsonLine)
+		if err != nil {
+			return fmt.Errorf("%s: %s", err.Error(), line)
+		} else if jsonLine.URL == "" {
+			return fmt.Errorf("missing url property: %s", line)
+		}
+
+		// allow overriding of the request method per JSON line, but otherwise use the default
+		method := requestMethod
+		if jsonLine.Method != "" {
+			method = jsonLine.Method
+		}
+
+		mergedHeaders := mergeHeaders(staticHeaders, jsonLine.Headers)
+
+		request := createRequest(jsonLine.URL, nil, method, mergedHeaders)
+		requestsWithContext <- RequestWithContext{Request: request, RequestContext: jsonLine.Context}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
 
 	return nil
+}
+
+func mergeHeaders(staticHeaders []config.RequestHeader, jsonLineHeaders map[string]string) []config.RequestHeader {
+	if len(jsonLineHeaders) == 0 {
+		return staticHeaders
+	}
+
+	headersMap := make(map[string]string)
+	for _, header := range staticHeaders {
+		headersMap[header.Key] = header.Value
+	}
+
+	for key, value := range jsonLineHeaders {
+		headersMap[key] = value
+	}
+
+	mergedHeaders := make([]config.RequestHeader, 0, len(headersMap))
+	for key, value := range headersMap {
+		mergedHeaders = append(mergedHeaders, config.RequestHeader{Key: key, Value: value})
+	}
+
+	return mergedHeaders
 }
 
 // current assumption is that the first character is '{' for a stream of json lines,
