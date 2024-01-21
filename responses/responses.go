@@ -114,13 +114,15 @@ func determineEmitResponseWithContextFn(context *execcontext.Context) emitRespon
 
 // returns a function that will emit the JSON envelope around the response body
 // the JSON envelope will include the url and http code along with the response body
-// TODO: add the request values and the response headers to the JSON envelope
 func jsonEnvelopeResponseFn(bodyResponseFn emitResponseFn, context *execcontext.Context) emitResponseWithContextFn {
 	return func(responseWithContext *ResponseWithContext, out io.Writer) (bytesWritten int64, err error) {
 		var bodyBytesWritten int64
+		var contextBytesWritten int64
+		var closingBytesWritten int64
 
-		// TODO add the request context to the JSON output if present
 		response := responseWithContext.Response
+
+		requestContext := responseWithContext.RequestContext
 
 		// everything before emitting the body response
 		bytesWritten, err = appendString(0, out, fmt.Sprintf(
@@ -136,7 +138,6 @@ func jsonEnvelopeResponseFn(bodyResponseFn emitResponseFn, context *execcontext.
 		if context.ResponseBody == config.Discard || context.ResponseBody == config.Raw {
 			// no need to wrap either of these in quotes, Raw is assumed to be JSON
 			bodyBytesWritten, err = bodyResponseFn(response, out)
-			bytesWritten += bodyBytesWritten
 		} else {
 			// for all other ResponseBody types we want to encapsulate the body in quotes if it exists,
 			// so we need to use a temp buffer to see if there's anything to quote
@@ -147,20 +148,37 @@ func jsonEnvelopeResponseFn(bodyResponseFn emitResponseFn, context *execcontext.
 			}
 		}
 
+		bytesWritten += bodyBytesWritten
+
 		if err != nil {
 			return bytesWritten, err
 		}
 
 		// if we didn't write anything for the body response, we emit a `null`
 		if bodyBytesWritten == 0 {
-			bytesWritten, err = appendString(bytesWritten, out, "null")
+			bodyBytesWritten, err = appendString(bytesWritten, out, "null")
+			bytesWritten += bodyBytesWritten
+			if err != nil {
+				return bytesWritten, err
+			}
+		}
+
+		// Add requestContext to JSON if it is not nil
+		if requestContext != nil {
+			requestContextJson, err := json.Marshal(requestContext)
+			if err != nil {
+				return bytesWritten, err
+			}
+			contextBytesWritten, err = appendString(bytesWritten, out, fmt.Sprintf(", \"context\": %s", string(requestContextJson)))
+			bytesWritten += contextBytesWritten
 			if err != nil {
 				return bytesWritten, err
 			}
 		}
 
 		// close out the JSON envelope
-		bytesWritten, err = appendString(bytesWritten, out, " }")
+		closingBytesWritten, err = appendString(bytesWritten, out, " }")
+		bytesWritten += closingBytesWritten
 		if err != nil {
 			return bytesWritten, err
 		}

@@ -89,6 +89,14 @@ func (server *HttpServerStub) stubStdinUrls(fragments []string) io.Reader {
 }
 
 func trimmedInputReader(s string) io.Reader {
+	return strings.NewReader(trimIndent(s))
+}
+
+func trimIndentKeepTrailingNewline(s string) string {
+	return trimIndent(s) + "\n"
+}
+
+func trimIndent(s string) string {
 	lines := strings.Split(s, "\n")
 	var trimmedLines []string
 
@@ -98,5 +106,5 @@ func trimmedInputReader(s string) io.Reader {
 			trimmedLines = append(trimmedLines, trimmedLine)
 		}
 	}
-	return strings.NewReader(strings.Join(trimmedLines, "\n"))
+	return strings.Join(trimmedLines, "\n")
 }

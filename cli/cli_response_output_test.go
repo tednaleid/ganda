@@ -139,9 +139,19 @@ func TestJsonLinesContextWithJsonEnvelope(t *testing.T) {
 
 	runResults, _ := RunApp([]string{"ganda", "-J"}, trimmedInputReader(inputLines))
 
-	// TODO start here, make this test work, need to change the expected to be the JSON responses
-	// also need to actually print out the context in code
-	runResults.assert(t, "foobar", "Response: 200 "+url+"\n")
+	expectedOutput := trimIndentKeepTrailingNewline(`
+		{ "url": "` + url + `", "code": 200, "body": null, "context": ["foo","quoted content"] }
+		{ "url": "` + url + `", "code": 200, "body": null, "context": {"corge":456,"quux":"  \"quoted with whitespace\"  "} }
+		{ "url": "` + url + `", "code": 200, "body": null, "context": "baz" }
+	`)
+
+	expectedLog := trimIndentKeepTrailingNewline(`
+		Response: 200 ` + url + `
+		Response: 200 ` + url + `
+		Response: 200 ` + url + `
+	`)
+
+	runResults.assert(t, expectedOutput, expectedLog)
 }
 
 func TestErrorResponse(t *testing.T) {
