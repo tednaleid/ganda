@@ -52,6 +52,7 @@ func TestResponseBody(t *testing.T) {
 	}{
 		{"raw", config.Raw, "Hello /bar\n"},
 		{"discard", config.Discard, ""},
+		{"escaped", config.Escaped, "\"Hello /bar\"\n"},
 		{"base64", config.Base64, "SGVsbG8gL2Jhcg==\n"},
 		{"sha256", config.Sha256, "13a05f3ce0f3edc94bdeee3783c969dfb27c234b6dd98ce7fd004ffc69a45ece\n"},
 	}
@@ -79,6 +80,7 @@ func TestResponseBodyWithJsonEnvelope(t *testing.T) {
 	}{
 		{"raw", config.Raw, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 200, \"body\": { \"foo\": \"/bar\" } }\n"},
 		{"discard", config.Discard, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 200, \"body\": null }\n"},
+		{"escaped", config.Escaped, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 200, \"body\": \"\"{ \\\"foo\\\": \\\"/bar\\\" }\"\" }\n"},
 		{"base64", config.Base64, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 200, \"body\": \"eyAiZm9vIjogIi9iYXIiIH0=\" }\n"},
 		{"sha256", config.Sha256, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 200, \"body\": \"f660cd1420c6acd9408932b9983909c26ab6cb21ffb40525670a7b7aa67092ec\" }\n"},
 	}
@@ -106,6 +108,7 @@ func TestErrorWithJsonEnvelope(t *testing.T) {
 	}{
 		{"raw", config.Raw, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 404, \"body\": null }\n"},
 		{"discard", config.Discard, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 404, \"body\": null }\n"},
+		{"escaped", config.Escaped, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 404, \"body\": null }\n"},
 		{"base64", config.Base64, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 404, \"body\": null }\n"},
 		{"sha256", config.Sha256, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 404, \"body\": null }\n"},
 	}
@@ -118,6 +121,27 @@ func TestErrorWithJsonEnvelope(t *testing.T) {
 			runResults.assert(t, tc.expected, "Response: 404 "+url+"\n")
 		})
 	}
+}
+
+func TestJsonLinesContextWithJsonEnvelope(t *testing.T) {
+	server := NewHttpServerStub(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "")
+	}))
+	defer server.Server.Close()
+
+	url := server.urlFor("bar")
+
+	inputLines := `
+        { "url": "` + url + `", "context": ["foo", "quoted content"] }
+		{ "url": "` + url + `", "method": "POST", "context": { "quux": "  \"quoted with whitespace\"  ", "corge": 456 } }
+		{ "url": "` + url + `", "method": "DELETE", "context": "baz" }
+    `
+
+	runResults, _ := RunApp([]string{"ganda", "-J"}, trimmedInputReader(inputLines))
+
+	// TODO start here, make this test work, need to change the expected to be the JSON responses
+	// also need to actually print out the context in code
+	runResults.assert(t, "foobar", "Response: 200 "+url+"\n")
 }
 
 func TestErrorResponse(t *testing.T) {

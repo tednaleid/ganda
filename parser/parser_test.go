@@ -1,6 +1,7 @@
 package parser_test
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/tednaleid/ganda/config"
 	"github.com/tednaleid/ganda/parser"
@@ -235,10 +236,66 @@ func TestSendJsonLinesGivenHeadersOverrideStaticHeaders(t *testing.T) {
 	assert.Equal(t, "baz", requestContext, "expected context")
 }
 
-// TODO allow "body" to be specified in the JSON line
-// body defaults to `raw` (is this a string?), could also be JSON, `escaped`, or `base64`
+func TestSendJsonLinesStaticHeadersAreNotRequiredToAddHeaders(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 1)
+	defer close(requestsWithContext)
 
-// TODO then get the request context passing through to the response output
+	inputLines := `{ "url": "https://ex.com/123", "method": "DELETE", "headers": { "X-Bar": "corge" }, "context": "baz" }`
+
+	var in = trimmedInputReader(inputLines)
+
+	err := parser.SendRequests(requestsWithContext, in, "GET", nil)
+
+	assert.Nil(t, err, "expected no error")
+
+	requestWithContext := <-requestsWithContext
+	request := requestWithContext.Request
+	requestContext := requestWithContext.RequestContext
+
+	assert.Equal(t, "https://ex.com/123", request.URL.String(), "expected url")
+	assert.Equal(t, "DELETE", request.Method, "expected method")
+	assert.Equal(t, request.Header["Connection"][0], "keep-alive", "Connection header")
+	assert.Equal(t, request.Header["X-Bar"][0], "corge")
+	assert.Equal(t, "baz", requestContext, "expected context")
+}
+
+func TestSendJsonLinesPassesBody(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 3)
+	defer close(requestsWithContext)
+
+	// Define the three types of body inputs
+	bodyInputs := []struct {
+		bodyType string
+		body     string
+		expected string
+	}{
+		{"escaped", `"the \"body\""`, "the \"body\""},
+		{"base64", `"dGhlIGJvZHk="`, "the body"},
+		{"json", `{"key": "value"}`, `{"key": "value"}`},
+		{"", `{"key": "value"}`, `{"key": "value"}`},
+	}
+
+	for _, bodyInput := range bodyInputs {
+		inputLines := fmt.Sprintf(`{ "url": "https://ex.com/123", "body": %s, "bodyType": "%s" }`, bodyInput.body, bodyInput.bodyType)
+
+		var in = strings.NewReader(inputLines)
+
+		err := parser.SendRequests(requestsWithContext, in, "GET", nil)
+
+		assert.Nil(t, err, "expected no error")
+
+		requestWithContext := <-requestsWithContext
+		request := requestWithContext.Request
+
+		assert.Equal(t, "https://ex.com/123", request.URL.String(), "expected url")
+		assert.NotNil(t, request.Body, "expected body")
+
+		bodyBytes, _ := io.ReadAll(request.Body)
+		bodyString := string(bodyBytes)
+
+		assert.Equal(t, bodyInput.expected, bodyString, "expected body")
+	}
+}
 
 func trimmedInputReader(s string) io.Reader {
 	lines := strings.Split(s, "\n")

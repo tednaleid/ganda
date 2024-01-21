@@ -6,6 +6,7 @@ import (
 	"github.com/tednaleid/ganda/execcontext"
 	"github.com/tednaleid/ganda/logger"
 	"github.com/tednaleid/ganda/parser"
+	"github.com/tednaleid/ganda/responses"
 	"math"
 	"net/http"
 	"sync"
@@ -35,7 +36,11 @@ func NewHttpClient(context *execcontext.Context) *HttpClient {
 	}
 }
 
-func StartRequestWorkers(requestsWithContext <-chan parser.RequestWithContext, responses chan<- *http.Response, context *execcontext.Context) *sync.WaitGroup {
+func StartRequestWorkers(
+	requestsWithContext <-chan parser.RequestWithContext,
+	responsesWithContext chan<- *responses.ResponseWithContext,
+	context *execcontext.Context,
+) *sync.WaitGroup {
 	var requestWaitGroup sync.WaitGroup
 	requestWaitGroup.Add(context.RequestWorkers)
 
@@ -49,7 +54,7 @@ func StartRequestWorkers(requestsWithContext <-chan parser.RequestWithContext, r
 
 	for i := 1; i <= context.RequestWorkers; i++ {
 		go func() {
-			requestWorker(context, requestsWithContext, responses, rateLimitTicker)
+			requestWorker(context, requestsWithContext, responsesWithContext, rateLimitTicker)
 			requestWaitGroup.Done()
 		}()
 	}
@@ -57,7 +62,12 @@ func StartRequestWorkers(requestsWithContext <-chan parser.RequestWithContext, r
 	return &requestWaitGroup
 }
 
-func requestWorker(context *execcontext.Context, requestsWithContext <-chan parser.RequestWithContext, responses chan<- *http.Response, rateLimitTicker *time.Ticker) {
+func requestWorker(
+	context *execcontext.Context,
+	requestsWithContext <-chan parser.RequestWithContext,
+	responsesWithContext chan<- *responses.ResponseWithContext,
+	rateLimitTicker *time.Ticker,
+) {
 	httpClient := NewHttpClient(context)
 
 	for requestWithContext := range requestsWithContext {
@@ -68,7 +78,7 @@ func requestWorker(context *execcontext.Context, requestsWithContext <-chan pars
 		finalResponse, err := requestWithRetry(httpClient, requestWithContext, context.BaseRetryDelayDuration)
 
 		if err == nil {
-			responses <- finalResponse
+			responsesWithContext <- finalResponse
 		}
 	}
 }
@@ -77,16 +87,21 @@ func requestWithRetry(
 	httpClient *HttpClient,
 	requestWithContext parser.RequestWithContext,
 	baseRetryDelay time.Duration,
-) (*http.Response, error) {
+) (*responses.ResponseWithContext, error) {
 	var response *http.Response
 	var err error
 
 	for attempts := int64(1); ; attempts++ {
 		response, err = httpClient.Client.Do(requestWithContext.Request)
 
+		responseWithContext := &responses.ResponseWithContext{
+			Response:       response,
+			RequestContext: requestWithContext.RequestContext,
+		}
+
 		if err == nil && response.StatusCode < 500 {
 			// return successful response or non-server error, we don't retry those
-			return response, nil
+			return responseWithContext, nil
 		}
 
 		message := requestWithContext.Request.URL.String()
@@ -98,7 +113,7 @@ func requestWithRetry(
 		}
 
 		if attempts > httpClient.MaxRetries {
-			return response, fmt.Errorf("maximum number of retries (%d) reached for request", httpClient.MaxRetries)
+			return responseWithContext, fmt.Errorf("maximum number of retries (%d) reached for request", httpClient.MaxRetries)
 		}
 
 		time.Sleep(baseRetryDelay * time.Duration(2^attempts))

@@ -14,13 +14,13 @@ func TestRawOutput(t *testing.T) {
 		ResponseBody: config.Raw,
 	}
 
-	responseFn := determineEmitResponseFn(context)
+	responseFn := determineEmitResponseWithContextFn(context)
 	assert.NotNil(t, responseFn)
 
 	mockResponse := NewMockResponse("hello world")
 	writeCloser := NewMockWriteCloser()
 
-	responseFn(mockResponse.Response, writeCloser)
+	responseFn(&ResponseWithContext{Response: mockResponse.Response}, writeCloser)
 
 	assert.True(t, mockResponse.BodyClosed())
 	assert.Equal(t, "hello world", writeCloser.ToString())
@@ -31,13 +31,13 @@ func TestDiscardOutput(t *testing.T) {
 		ResponseBody: config.Discard,
 	}
 
-	responseFn := determineEmitResponseFn(context)
+	responseFn := determineEmitResponseWithContextFn(context)
 	assert.NotNil(t, responseFn)
 
 	mockResponse := NewMockResponse("hello world")
 	out := NewMockWriteCloser()
 
-	responseFn(mockResponse.Response, out)
+	responseFn(&ResponseWithContext{Response: mockResponse.Response}, out)
 	assert.True(t, mockResponse.BodyClosed())
 	assert.Equal(t, "", out.ToString())
 }
@@ -47,13 +47,13 @@ func TestBase64Output(t *testing.T) {
 		ResponseBody: config.Base64,
 	}
 
-	responseFn := determineEmitResponseFn(context)
+	responseFn := determineEmitResponseWithContextFn(context)
 	assert.NotNil(t, responseFn)
 
 	mockResponse := NewMockResponse("hello world")
 	out := NewMockWriteCloser()
 
-	responseFn(mockResponse.Response, out)
+	responseFn(&ResponseWithContext{Response: mockResponse.Response}, out)
 	assert.True(t, mockResponse.BodyClosed())
 	assert.Equal(t, "aGVsbG8gd29ybGQ=", out.ToString())
 }
@@ -63,13 +63,13 @@ func TestSha256Output(t *testing.T) {
 		ResponseBody: config.Sha256,
 	}
 
-	responseFn := determineEmitResponseFn(context)
+	responseFn := determineEmitResponseWithContextFn(context)
 	assert.NotNil(t, responseFn)
 
 	mockResponse := NewMockResponse("hello world")
 	out := NewMockWriteCloser()
 
-	responseFn(mockResponse.Response, out)
+	responseFn(&ResponseWithContext{Response: mockResponse.Response}, out)
 	assert.True(t, mockResponse.BodyClosed())
 
 	// if testing with "echo" be sure to use the -n flag to not include the newline
@@ -81,7 +81,7 @@ func TestSha256Output(t *testing.T) {
 	mockResponse2 := NewMockResponse("hello world")
 	out2 := NewMockWriteCloser()
 
-	responseFn(mockResponse2.Response, out2)
+	responseFn(&ResponseWithContext{Response: mockResponse2.Response}, out2)
 	assert.True(t, mockResponse2.BodyClosed())
 	assert.Equal(t, "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9", out2.ToString())
 }

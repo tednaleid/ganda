@@ -73,6 +73,7 @@ func TestResponseBodyFlags(t *testing.T) {
 		input    string
 		expected config.ResponseBodyType
 	}{
+		{"", config.Raw},
 		{"base64", config.Base64},
 		{"discard", config.Discard},
 		{"escaped", config.Escaped},
@@ -81,14 +82,21 @@ func TestResponseBodyFlags(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		shortResults, _ := ParseArgs([]string{"ganda", "-B", tc.input})
-		assert.NotNil(t, shortResults)
-		assert.NotNil(t, shortResults.context)
-		assert.Equal(t, tc.expected, shortResults.context.ResponseBody)
+		if tc.input == "" {
+			results, _ := ParseArgs([]string{"ganda"})
+			assert.NotNil(t, results)
+			assert.NotNil(t, results.context)
+			assert.Equal(t, tc.expected, results.context.ResponseBody)
+		} else {
+			shortResults, _ := ParseArgs([]string{"ganda", "-B", tc.input})
+			assert.NotNil(t, shortResults)
+			assert.NotNil(t, shortResults.context)
+			assert.Equal(t, tc.expected, shortResults.context.ResponseBody)
 
-		longResults, _ := ParseArgs([]string{"ganda", "--response-body", tc.input})
-		assert.NotNil(t, longResults)
-		assert.NotNil(t, longResults.context)
-		assert.Equal(t, tc.expected, longResults.context.ResponseBody)
+			longResults, _ := ParseArgs([]string{"ganda", "--response-body", tc.input})
+			assert.NotNil(t, longResults)
+			assert.NotNil(t, longResults.context)
+			assert.Equal(t, tc.expected, longResults.context.ResponseBody)
+		}
 	}
 }

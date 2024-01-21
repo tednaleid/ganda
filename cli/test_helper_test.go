@@ -87,3 +87,16 @@ func (server *HttpServerStub) stubStdinUrls(fragments []string) io.Reader {
 	urlsString := strings.Join(urls, "\n")
 	return strings.NewReader(urlsString)
 }
+
+func trimmedInputReader(s string) io.Reader {
+	lines := strings.Split(s, "\n")
+	var trimmedLines []string
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if len(trimmedLine) > 0 {
+			trimmedLines = append(trimmedLines, trimmedLine)
+		}
+	}
+	return strings.NewReader(strings.Join(trimmedLines, "\n"))
+}

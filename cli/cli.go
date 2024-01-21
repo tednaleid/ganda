@@ -10,7 +10,6 @@ import (
 	"github.com/tednaleid/ganda/responses"
 	"github.com/urfave/cli/v3"
 	"io"
-	"net/http"
 )
 
 type BuildInfo struct {
@@ -210,10 +209,10 @@ func RunCommand(
 
 func ProcessRequests(context *execcontext.Context) {
 	requestsWithContextChannel := make(chan parser.RequestWithContext)
-	responsesChannel := make(chan *http.Response)
+	responsesWithContextChannel := make(chan *responses.ResponseWithContext)
 
-	requestWaitGroup := requests.StartRequestWorkers(requestsWithContextChannel, responsesChannel, context)
-	responseWaitGroup := responses.StartResponseWorkers(responsesChannel, context)
+	requestWaitGroup := requests.StartRequestWorkers(requestsWithContextChannel, responsesWithContextChannel, context)
+	responseWaitGroup := responses.StartResponseWorkers(responsesWithContextChannel, context)
 
 	err := parser.SendRequests(requestsWithContextChannel, context.In, context.RequestMethod, context.RequestHeaders)
 
@@ -224,6 +223,6 @@ func ProcessRequests(context *execcontext.Context) {
 	close(requestsWithContextChannel)
 	requestWaitGroup.Wait()
 
-	close(responsesChannel)
+	close(responsesWithContextChannel)
 	responseWaitGroup.Wait()
 }

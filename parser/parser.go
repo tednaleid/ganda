@@ -2,12 +2,16 @@ package parser
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"github.com/tednaleid/ganda/config"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 type InputType int
@@ -69,10 +73,12 @@ func SendUrlsRequests(
 }
 
 type JsonLine struct {
-	URL     string            `json:"url"`
-	Method  string            `json:"method"`
-	Context interface{}       `json:"context"`
-	Headers map[string]string `json:"headers"`
+	URL      string            `json:"url"`
+	Method   string            `json:"method"`
+	Context  interface{}       `json:"context"`
+	Headers  map[string]string `json:"headers"`
+	Body     json.RawMessage   `json:"body"`
+	BodyType string            `json:"bodyType"`
 }
 
 func SendJsonLinesRequests(
@@ -94,6 +100,11 @@ func SendJsonLinesRequests(
 			return fmt.Errorf("missing url property: %s", line)
 		}
 
+		body, err := parseBody(jsonLine.BodyType, jsonLine.Body)
+		if err != nil {
+			return fmt.Errorf("failed to parse body: %s", err)
+		}
+
 		// allow overriding of the request method per JSON line, but otherwise use the default
 		method := requestMethod
 		if jsonLine.Method != "" {
@@ -102,7 +113,7 @@ func SendJsonLinesRequests(
 
 		mergedHeaders := mergeHeaders(staticHeaders, jsonLine.Headers)
 
-		request := createRequest(jsonLine.URL, nil, method, mergedHeaders)
+		request := createRequest(jsonLine.URL, body, method, mergedHeaders)
 		requestsWithContext <- RequestWithContext{Request: request, RequestContext: jsonLine.Context}
 	}
 
@@ -133,6 +144,29 @@ func mergeHeaders(staticHeaders []config.RequestHeader, jsonLineHeaders map[stri
 	}
 
 	return mergedHeaders
+}
+
+func parseBody(bodyType string, body json.RawMessage) (io.ReadCloser, error) {
+	switch bodyType {
+	case "escaped":
+		str, err := strconv.Unquote(string(body))
+		if err != nil {
+			return nil, err
+		}
+		return io.NopCloser(strings.NewReader(str)), nil
+	case "base64":
+		unquoted, err := strconv.Unquote(string(body))
+		data, err := base64.StdEncoding.DecodeString(unquoted)
+		if err != nil {
+			return nil, err
+		}
+		return io.NopCloser(bytes.NewReader(data)), nil
+	case "json", "":
+		// Use the JSON as is
+		return io.NopCloser(bytes.NewReader(body)), nil
+	default:
+		return nil, fmt.Errorf("unsupported body type: %s, valid values: \"json\", \"base64\", \"escaped\"", bodyType)
+	}
 }
 
 // current assumption is that the first character is '{' for a stream of json lines,

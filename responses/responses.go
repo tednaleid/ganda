@@ -18,18 +18,23 @@ import (
 	"sync"
 )
 
-func StartResponseWorkers(responses <-chan *http.Response, context *execcontext.Context) *sync.WaitGroup {
+type ResponseWithContext struct {
+	Response       *http.Response
+	RequestContext interface{}
+}
+
+func StartResponseWorkers(responsesWithContext <-chan *ResponseWithContext, context *execcontext.Context) *sync.WaitGroup {
 	var responseWaitGroup sync.WaitGroup
 	responseWaitGroup.Add(context.ResponseWorkers)
 
 	for i := 1; i <= context.ResponseWorkers; i++ {
 		go func() {
-			emitResponse := determineEmitResponseFn(context)
+			emitResponseWithContext := determineEmitResponseWithContextFn(context)
 
 			if context.WriteFiles {
-				responseSavingWorker(responses, context, emitResponse)
+				responseSavingWorker(responsesWithContext, context, emitResponseWithContext)
 			} else {
-				responsePrintingWorker(responses, context, emitResponse)
+				responsePrintingWorker(responsesWithContext, context, emitResponseWithContext)
 			}
 			responseWaitGroup.Done()
 		}()
@@ -41,15 +46,20 @@ func StartResponseWorkers(responses <-chan *http.Response, context *execcontext.
 // creates a worker that takes responses off the channel and saves each one to a file
 // the directory path is based off the md5 hash of the url
 // the filename is the url with all non-alphanumeric characters replaced with dashes
-func responseSavingWorker(responses <-chan *http.Response, context *execcontext.Context, emitResponse emitResponseFn) {
+func responseSavingWorker(
+	responsesWithContext <-chan *ResponseWithContext,
+	context *execcontext.Context,
+	emitResponseWithContextFn emitResponseWithContextFn,
+) {
 	specialCharactersRegexp := regexp.MustCompile("[^A-Za-z0-9]+")
 
-	responseWorker(responses, func(response *http.Response) {
+	responseWorker(responsesWithContext, func(responseWithContext *ResponseWithContext) {
+		response := responseWithContext.Response
 		filename := specialCharactersRegexp.ReplaceAllString(response.Request.URL.String(), "-")
 		writeableFile := createWritableFile(context.BaseDirectory, context.SubdirLength, filename)
 		defer writeableFile.WriteCloser.Close()
 
-		_, err := emitResponse(response, writeableFile.WriteCloser)
+		_, err := emitResponseWithContextFn(responseWithContext, writeableFile.WriteCloser)
 
 		if err != nil {
 			context.Logger.LogError(err, response.Request.URL.String()+" -> "+writeableFile.FullPath)
@@ -62,11 +72,17 @@ func responseSavingWorker(responses <-chan *http.Response, context *execcontext.
 // creates a worker that takes responses off the channel and prints each one to stdout
 // if the JsonEnvelope flag is set, it will wrap the response in a JSON envelope
 // a newline will be emitted after each non-empty response
-func responsePrintingWorker(responses <-chan *http.Response, context *execcontext.Context, emitResponse emitResponseFn) {
+func responsePrintingWorker(
+	responsesWithContext <-chan *ResponseWithContext,
+	context *execcontext.Context,
+	emitResponseWithContext emitResponseWithContextFn,
+) {
 	out := context.Out
 	newline := []byte("\n")
-	responseWorker(responses, func(response *http.Response) {
-		bytesWritten, err := emitResponse(response, out)
+	responseWorker(responsesWithContext, func(responseWithContext *ResponseWithContext) {
+		response := responseWithContext.Response
+		bytesWritten, err := emitResponseWithContext(responseWithContext, out)
+
 		if err != nil {
 			context.Logger.LogError(err, response.Request.URL.String())
 		} else {
@@ -80,24 +96,31 @@ func responsePrintingWorker(responses <-chan *http.Response, context *execcontex
 
 // takes a response and writes it to the writer, returns true if it wrote anything
 type emitResponseFn func(response *http.Response, out io.Writer) (bytesWritten int64, err error)
+type emitResponseWithContextFn func(responseWithContext *ResponseWithContext, out io.Writer) (bytesWritten int64, err error)
 
 // we might wrap the body response in a JSON envelope
-func determineEmitResponseFn(context *execcontext.Context) emitResponseFn {
+func determineEmitResponseWithContextFn(context *execcontext.Context) emitResponseWithContextFn {
 	bodyResponseFn := determineEmitBodyResponseFn(context)
 
 	if context.JsonEnvelope {
 		return jsonEnvelopeResponseFn(bodyResponseFn, context)
 	}
 
-	return bodyResponseFn
+	// not emitting the context, just the body response
+	return func(responseWithContext *ResponseWithContext, out io.Writer) (bytesWritten int64, err error) {
+		return bodyResponseFn(responseWithContext.Response, out)
+	}
 }
 
 // returns a function that will emit the JSON envelope around the response body
 // the JSON envelope will include the url and http code along with the response body
 // TODO: add the request values and the response headers to the JSON envelope
-func jsonEnvelopeResponseFn(bodyResponseFn emitResponseFn, context *execcontext.Context) emitResponseFn {
-	return func(response *http.Response, out io.Writer) (bytesWritten int64, err error) {
+func jsonEnvelopeResponseFn(bodyResponseFn emitResponseFn, context *execcontext.Context) emitResponseWithContextFn {
+	return func(responseWithContext *ResponseWithContext, out io.Writer) (bytesWritten int64, err error) {
 		var bodyBytesWritten int64
+
+		// TODO add the request context to the JSON output if present
+		response := responseWithContext.Response
 
 		// everything before emitting the body response
 		bytesWritten, err = appendString(0, out, fmt.Sprintf(
@@ -225,26 +248,19 @@ func emitEscapedBody(buffer *bytes.Buffer, response *http.Response, out io.Write
 		return 0, err
 	}
 
-	// the json encoder doesn't support emitting the number of bytes that were written to the writer, wrap it to keep track
-	countingWriter := &CountingWriter{Writer: out}
-	encoder := json.NewEncoder(countingWriter)
-	err = encoder.Encode(buffer.String())
-	if err != nil {
-		return countingWriter.Count, err
+	if buffer.Len() == 0 {
+		return 0, nil
 	}
 
-	return countingWriter.Count, nil
-}
+	// Marshal the buffer's contents to JSON
+	jsonBytes, err := json.Marshal(buffer.String())
+	if err != nil {
+		return 0, err
+	}
 
-type CountingWriter struct {
-	io.Writer
-	Count int64
-}
-
-func (cw *CountingWriter) Write(p []byte) (n int, err error) {
-	n, err = cw.Writer.Write(p)
-	cw.Count += int64(n)
-	return n, err
+	// Write the JSON bytes to the output writer
+	n, err := out.Write(jsonBytes)
+	return int64(n), err
 }
 
 func emitNothingBody(response *http.Response, out io.Writer) (bytesWritten int64, err error) {
@@ -252,9 +268,9 @@ func emitNothingBody(response *http.Response, out io.Writer) (bytesWritten int64
 	return 0, nil
 }
 
-func responseWorker(responses <-chan *http.Response, responseHandler func(*http.Response)) {
-	for response := range responses {
-		responseHandler(response)
+func responseWorker(responsesWithContext <-chan *ResponseWithContext, responseHandler func(*ResponseWithContext)) {
+	for responseWithContext := range responsesWithContext {
+		responseHandler(responseWithContext)
 	}
 }
 
