@@ -29,12 +29,17 @@ func StartResponseWorkers(responsesWithContext <-chan *ResponseWithContext, cont
 
 	for i := 1; i <= context.ResponseWorkers; i++ {
 		go func() {
-			emitResponseWithContext := determineEmitResponseWithContextFn(context)
+			var emitResponse emitResponseWithContextFn
+			if context.JsonEnvelope {
+				emitResponse = determineEmitJsonResponseWithContextFn(context.ResponseBody)
+			} else {
+				emitResponse = determineEmitResponseFn(context.ResponseBody)
+			}
 
 			if context.WriteFiles {
-				responseSavingWorker(responsesWithContext, context, emitResponseWithContext)
+				responseSavingWorker(responsesWithContext, context, emitResponse)
 			} else {
-				responsePrintingWorker(responsesWithContext, context, emitResponseWithContext)
+				responsePrintingWorker(responsesWithContext, context, emitResponse)
 			}
 			responseWaitGroup.Done()
 		}()
@@ -98,23 +103,24 @@ func responsePrintingWorker(
 type emitResponseFn func(response *http.Response, out io.Writer) (bytesWritten int64, err error)
 type emitResponseWithContextFn func(responseWithContext *ResponseWithContext, out io.Writer) (bytesWritten int64, err error)
 
-// we might wrap the body response in a JSON envelope
-func determineEmitResponseWithContextFn(context *execcontext.Context) emitResponseWithContextFn {
-	bodyResponseFn := determineEmitBodyResponseFn(context)
+// emits the response without the context, context is only supported in JSON output
+func determineEmitResponseFn(responseBody config.ResponseBodyType) emitResponseWithContextFn {
+	bodyResponseFn := determineEmitBodyResponseFn(responseBody)
 
-	if context.JsonEnvelope {
-		return jsonEnvelopeResponseFn(bodyResponseFn, context)
-	}
-
-	// not emitting the context, just the body response
 	return func(responseWithContext *ResponseWithContext, out io.Writer) (bytesWritten int64, err error) {
 		return bodyResponseFn(responseWithContext.Response, out)
 	}
 }
 
+// surrounds the responsesBody with a JSON envelope that includes the context of the request (if any)
+func determineEmitJsonResponseWithContextFn(responseBody config.ResponseBodyType) emitResponseWithContextFn {
+	bodyResponseFn := determineEmitBodyResponseFn(responseBody)
+	return jsonEnvelopeResponseFn(bodyResponseFn, responseBody)
+}
+
 // returns a function that will emit the JSON envelope around the response body
 // the JSON envelope will include the url and http code along with the response body
-func jsonEnvelopeResponseFn(bodyResponseFn emitResponseFn, context *execcontext.Context) emitResponseWithContextFn {
+func jsonEnvelopeResponseFn(bodyResponseFn emitResponseFn, responseBody config.ResponseBodyType) emitResponseWithContextFn {
 	return func(responseWithContext *ResponseWithContext, out io.Writer) (bytesWritten int64, err error) {
 		var bodyBytesWritten int64
 		var contextBytesWritten int64
@@ -135,7 +141,7 @@ func jsonEnvelopeResponseFn(bodyResponseFn emitResponseFn, context *execcontext.
 		}
 
 		// emit the body response
-		if context.ResponseBody == config.Discard || context.ResponseBody == config.Raw {
+		if responseBody == config.Discard || responseBody == config.Raw {
 			// no need to wrap either of these in quotes, Raw is assumed to be JSON
 			bodyBytesWritten, err = bodyResponseFn(response, out)
 		} else {
@@ -163,16 +169,19 @@ func jsonEnvelopeResponseFn(bodyResponseFn emitResponseFn, context *execcontext.
 			}
 		}
 
-		// Add requestContext to JSON if it is not nil
+		// Add requestContext to JSON if it is not nil/null
 		if requestContext != nil {
 			requestContextJson, err := json.Marshal(requestContext)
 			if err != nil {
 				return bytesWritten, err
 			}
-			contextBytesWritten, err = appendString(bytesWritten, out, fmt.Sprintf(", \"context\": %s", string(requestContextJson)))
-			bytesWritten += contextBytesWritten
-			if err != nil {
-				return bytesWritten, err
+			requestContextString := string(requestContextJson)
+			if requestContextString != "null" {
+				contextBytesWritten, err = appendString(bytesWritten, out, fmt.Sprintf(", \"context\": %s", string(requestContextJson)))
+				bytesWritten += contextBytesWritten
+				if err != nil {
+					return bytesWritten, err
+				}
 			}
 		}
 
@@ -193,8 +202,8 @@ func appendString(bytesPreviouslyWritten int64, out io.Writer, s string) (int64,
 	return bytesPreviouslyWritten + int64(appendedBytes), err
 }
 
-func determineEmitBodyResponseFn(context *execcontext.Context) emitResponseFn {
-	switch context.ResponseBody {
+func determineEmitBodyResponseFn(responseBody config.ResponseBodyType) emitResponseFn {
+	switch responseBody {
 	case config.Raw:
 		return emitRawBody
 	case config.Sha256:
@@ -206,7 +215,7 @@ func determineEmitBodyResponseFn(context *execcontext.Context) emitResponseFn {
 	case config.Base64:
 		return emitBase64Body
 	default:
-		panic(fmt.Sprintf("unknown response body type %s", context.ResponseBody))
+		panic(fmt.Sprintf("unknown response body type %s", responseBody))
 	}
 }
 

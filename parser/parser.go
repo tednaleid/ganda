@@ -66,7 +66,13 @@ func SendUrlsRequests(
 		if len(record) > 0 {
 			url := record[0]
 			request := createRequest(url, nil, requestMethod, staticHeaders)
-			requestsWithContext <- RequestWithContext{Request: request, RequestContext: record[1:]}
+			recordContext := record[1:]
+
+			if len(recordContext) == 0 {
+				recordContext = nil
+			}
+
+			requestsWithContext <- RequestWithContext{Request: request, RequestContext: recordContext}
 		}
 	}
 	return nil

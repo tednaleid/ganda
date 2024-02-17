@@ -32,15 +32,14 @@ func TestSendGetRequestUrlsHaveDefaultHeaders(t *testing.T) {
 	assert.Equal(t, "https://example.com/bar", request.URL.String(), "expected url")
 	assert.Equal(t, "GET", request.Method, "expected method")
 	assert.Equal(t, request.Header["Connection"][0], "keep-alive", "Connection header")
-	assert.Equal(t, []string{}, requestContext, "expected nil context")
+	assert.Equal(t, []string(nil), requestContext, "expected nil string context")
 
 	secondRequestWithContext := <-requestsWithContext
 	secondRequest := secondRequestWithContext.Request
 	secondRequestContext := secondRequestWithContext.RequestContext
 
 	assert.Equal(t, "https://example.com/qux", secondRequest.URL.String(), "expected url")
-	assert.Equal(t, []string{}, secondRequestContext, "expected nil context")
-
+	assert.Equal(t, []string(nil), secondRequestContext, "expected nil string context")
 }
 
 func TestSendGetRequestUrlsAddGivenHeaders(t *testing.T) {
@@ -65,7 +64,7 @@ func TestSendGetRequestUrlsAddGivenHeaders(t *testing.T) {
 	assert.Equal(t, request.Header["Connection"][0], "keep-alive", "Connection header")
 	assert.Equal(t, request.Header["X-Test"][0], "foo")
 	assert.Equal(t, request.Header["X-Test2"][0], "bar")
-	assert.Equal(t, []string{}, requestContext, "expected nil context")
+	assert.Equal(t, []string(nil), requestContext, "expected nil string context")
 }
 
 func TestSendRequestsHasRaggedRequestContext(t *testing.T) {

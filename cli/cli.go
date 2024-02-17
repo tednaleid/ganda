@@ -22,6 +22,22 @@ func (buildInfo BuildInfo) ToString() string {
 	return buildInfo.Version + " " + buildInfo.Commit + " " + buildInfo.Date
 }
 
+// RunCommand allows us to mock out the args and input/output streams for testing
+func RunCommand(
+	buildInfo BuildInfo,
+	args []string,
+	in io.Reader,
+	err io.Writer,
+	out io.Writer,
+	runBlock func(context *execcontext.Context),
+) error {
+	command := setupCommand(buildInfo, in, err, out, runBlock)
+	return command.Run(ctx.Background(), args)
+}
+
+// create the cli.Command so it is wired up with the given in/stdout/stderr and runBlock
+// this lets us mock out the input/output streams
+// runBlock is where we can wire up the request and response workers and start processing (or mock for tests)
 func setupCommand(
 	buildInfo BuildInfo,
 	in io.Reader,
@@ -194,19 +210,8 @@ func setupCommand(
 	}
 }
 
-// RunCommand allows us to mock out the args and input/output streams for testing
-func RunCommand(
-	buildInfo BuildInfo,
-	args []string,
-	in io.Reader,
-	err io.Writer,
-	out io.Writer,
-	runBlock func(context *execcontext.Context),
-) error {
-	command := setupCommand(buildInfo, in, err, out, runBlock)
-	return command.Run(ctx.Background(), args)
-}
-
+// ProcessRequests wires up the request and response workers with channels
+// and asks the parser to start sending requests
 func ProcessRequests(context *execcontext.Context) {
 	requestsWithContextChannel := make(chan parser.RequestWithContext)
 	responsesWithContextChannel := make(chan *responses.ResponseWithContext)
