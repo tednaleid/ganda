@@ -1,6 +1,7 @@
 package main
 
 import (
+	ctx "context"
 	"github.com/tednaleid/ganda/cli"
 	"os"
 )
@@ -14,10 +15,15 @@ var (
 )
 
 func main() {
-	err := cli.RunCommand(
+	command := cli.SetupCommand(
 		cli.BuildInfo{Version: version, Commit: commit, Date: date},
-		os.Args, os.Stdin, os.Stderr, os.Stdout, cli.ProcessRequests,
+		os.Stdin,
+		os.Stderr,
+		os.Stdout,
 	)
+
+	err := command.Run(ctx.Background(), os.Args)
+
 	if err != nil {
 		os.Exit(1)
 	}

@@ -14,7 +14,7 @@ func TestRequestColorOutput(t *testing.T) {
 	}))
 	defer server.Close()
 
-	runResults, _ := RunApp([]string{"ganda", "--color"}, server.stubStdinUrl("foo/1"))
+	runResults, _ := RunGanda([]string{"ganda", "--color"}, server.stubStdinUrl("foo/1"))
 
 	runResults.assert(
 		t,
@@ -30,7 +30,7 @@ func TestSilentOutput(t *testing.T) {
 	}))
 	defer server.Close()
 
-	runResults, _ := RunApp([]string{"ganda", "-s"}, server.stubStdinUrl("foo/1"))
+	runResults, _ := RunGanda([]string{"ganda", "-s"}, server.stubStdinUrl("foo/1"))
 
 	runResults.assert(
 		t,
@@ -59,7 +59,7 @@ func TestResponseBody(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			runResults, _ := RunApp([]string{"ganda", "-B", tc.name}, server.stubStdinUrl("bar"))
+			runResults, _ := RunGanda([]string{"ganda", "-B", tc.name}, server.stubStdinUrl("bar"))
 			url := server.urlFor("bar")
 
 			runResults.assert(t, tc.expected, "Response: 200 "+url+"\n")
@@ -87,7 +87,7 @@ func TestResponseBodyWithJsonEnvelope(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			runResults, _ := RunApp([]string{"ganda", "-J", "-B", tc.name}, server.stubStdinUrl("bar"))
+			runResults, _ := RunGanda([]string{"ganda", "-J", "-B", tc.name}, server.stubStdinUrl("bar"))
 			url := server.urlFor("bar")
 
 			runResults.assert(t, tc.expected, "Response: 200 "+url+"\n")
@@ -115,7 +115,7 @@ func TestErrorWithJsonEnvelope(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			runResults, _ := RunApp([]string{"ganda", "-J", "-B", tc.name}, server.stubStdinUrl("bar"))
+			runResults, _ := RunGanda([]string{"ganda", "-J", "-B", tc.name}, server.stubStdinUrl("bar"))
 			url := server.urlFor("bar")
 
 			runResults.assert(t, tc.expected, "Response: 404 "+url+"\n")
@@ -137,7 +137,7 @@ func TestJsonLinesContextWithJsonEnvelope(t *testing.T) {
 		{ "url": "` + url + `", "method": "DELETE", "context": "baz" }
     `
 
-	runResults, _ := RunApp([]string{"ganda", "-J"}, trimmedInputReader(inputLines))
+	runResults, _ := RunGanda([]string{"ganda", "-J"}, trimmedInputReader(inputLines))
 
 	expectedOutput := trimIndentKeepTrailingNewline(`
 		{ "url": "` + url + `", "code": 200, "body": null, "context": ["foo","quoted content"] }
@@ -161,7 +161,7 @@ func TestErrorResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	runResults, _ := RunApp([]string{"ganda", "-J"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunGanda([]string{"ganda", "-J"}, server.stubStdinUrl("bar"))
 
 	runResults.assert(
 		t,

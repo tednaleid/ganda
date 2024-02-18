@@ -2,9 +2,11 @@ package cli
 
 import (
 	"bytes"
+	ctx "context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/tednaleid/ganda/execcontext"
+	"github.com/urfave/cli/v3"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,42 +18,47 @@ import (
 
 var testBuildInfo = BuildInfo{Version: "testing", Commit: "123abc", Date: "2023-12-20"}
 
-type RunResults struct {
+type GandaResults struct {
 	stderr  string
 	stdout  string
 	context *execcontext.Context
 }
 
-func (results RunResults) assert(t *testing.T, expectedStandardOut string, expectedLog string) {
+func (results GandaResults) assert(t *testing.T, expectedStandardOut string, expectedLog string) {
 	assert.Equal(t, expectedStandardOut, results.stdout, "expected stdout")
 	assert.Equal(t, expectedLog, results.stderr, "expected logger stderr")
 }
 
 // we want to test parsing of arguments, we don't actually want to execute any requests
-func ParseArgs(args []string) (RunResults, error) {
+func ParseGandaArgs(args []string) (GandaResults, error) {
 	in := strings.NewReader("")
-	return runApp(args, in, nil)
+	return RunGanda(args, in)
 }
 
 // we want to control what stdin is sending and actually send the requests through
-func RunApp(args []string, in io.Reader) (RunResults, error) {
-	return runApp(args, in, ProcessRequests)
+func RunGanda(args []string, in io.Reader) (GandaResults, error) {
+	return runGanda(args, in, ProcessRequests)
 }
 
-func runApp(args []string, in io.Reader, runBlock func(context *execcontext.Context)) (RunResults, error) {
+func runGanda(args []string, in io.Reader, runBlock func(context *execcontext.Context)) (GandaResults, error) {
 	var resultContext *execcontext.Context
 	stderr := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 
-	processRequests := func(context *execcontext.Context) {
-		resultContext = context
+	command := SetupCommand(testBuildInfo, in, stderr, stdout)
+
+	// make the action a noop so we see the parsed args but don't actually run the command
+	command.Action = func(_ ctx.Context, cmd *cli.Command) error {
+		resultContext = cmd.Metadata["context"].(*execcontext.Context)
 		if runBlock != nil {
-			runBlock(context)
+			runBlock(resultContext)
 		}
+		return nil
 	}
 
-	err := RunCommand(testBuildInfo, args, in, stderr, stdout, processRequests)
-	return RunResults{stderr.String(), stdout.String(), resultContext}, err
+	err := command.Run(ctx.Background(), args)
+
+	return GandaResults{stderr.String(), stdout.String(), resultContext}, err
 }
 
 type HttpServerStub struct {

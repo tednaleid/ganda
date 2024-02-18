@@ -19,7 +19,7 @@ func TestRequestHappyPathHasDefaultHeaders(t *testing.T) {
 	}))
 	defer server.Close()
 
-	runResults, _ := RunApp([]string{"ganda"}, server.stubStdinUrl("foo/1"))
+	runResults, _ := RunGanda([]string{"ganda"}, server.stubStdinUrl("foo/1"))
 
 	runResults.assert(
 		t,
@@ -36,7 +36,7 @@ func TestTimeout(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunApp([]string{"ganda", "--connect-timeout-ms", "1"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunGanda([]string{"ganda", "--connect-timeout-ms", "1"}, server.stubStdinUrl("bar"))
 
 	url := server.urlFor("bar")
 
@@ -60,7 +60,7 @@ func TestRetryEnabledShouldRetry5XX(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunApp([]string{"ganda", "--retry", "1", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunGanda([]string{"ganda", "--retry", "1", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
 
 	url := server.urlFor("bar")
 
@@ -81,7 +81,7 @@ func TestRunningOutOfRetriesShouldStopProcessing(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunApp([]string{"ganda", "--retry", "2", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunGanda([]string{"ganda", "--retry", "2", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
 
 	url := server.urlFor("bar")
 
@@ -102,7 +102,7 @@ func TestRetryEnabledShouldNotRetry4XX(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunApp([]string{"ganda", "--retry", "1", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunGanda([]string{"ganda", "--retry", "1", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
 
 	url := server.urlFor("bar")
 
@@ -125,7 +125,7 @@ func TestRetryEnabledShouldRetryTimeout(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunApp([]string{"ganda", "--connect-timeout-ms", "10", "--retry", "1", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunGanda([]string{"ganda", "--connect-timeout-ms", "10", "--retry", "1", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
 	url := server.urlFor("bar")
 
 	//assert.Equal(t, 2, requestCount, "expected a second request")
@@ -144,7 +144,7 @@ func TestAddHeadersToRequestCreatesCanonicalKeys(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunApp([]string{"ganda", "-H", "foo: bar", "-H", "x-baz: qux"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunGanda([]string{"ganda", "-H", "foo: bar", "-H", "x-baz: qux"}, server.stubStdinUrl("bar"))
 	url := server.urlFor("bar")
 
 	runResults.assert(t,

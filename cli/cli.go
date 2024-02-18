@@ -29,26 +29,22 @@ func RunCommand(
 	in io.Reader,
 	err io.Writer,
 	out io.Writer,
-	runBlock func(context *execcontext.Context),
 ) error {
-	command := setupCommand(buildInfo, in, err, out, runBlock)
+	command := SetupCommand(buildInfo, in, err, out)
 	return command.Run(ctx.Background(), args)
 }
 
-// create the cli.Command so it is wired up with the given in/stdout/stderr and runBlock
+// create the cli.Command so it is wired up with the given in/stdout/stderr
 // this lets us mock out the input/output streams
-// runBlock is where we can wire up the request and response workers and start processing (or mock for tests)
-func setupCommand(
+func SetupCommand(
 	buildInfo BuildInfo,
 	in io.Reader,
 	stderr io.Writer,
 	stdout io.Writer,
-	runBlock func(context *execcontext.Context),
 ) cli.Command {
 	conf := config.New()
-	var context *execcontext.Context
 
-	return cli.Command{
+	command := cli.Command{
 		Name: "ganda",
 		Authors: []any{
 			"Ted Naleid <contact@naleid.com>",
@@ -186,10 +182,34 @@ func setupCommand(
 				Destination: &conf.RequestWorkers,
 			},
 		},
+		Commands: []*cli.Command{
+			{
+				Name:  "echoserver",
+				Usage: "Starts an echo server, --port <port> to override the default port of 8080",
+				Flags: []cli.Flag{
+					&cli.IntFlag{
+						Name:  "port",
+						Usage: "Port number to start the echo server on",
+						Value: 8080, // Default port number
+					},
+				},
+				Action: func(_ ctx.Context, cmd *cli.Command) error {
+					//port := cmd.Int("port")
+					//context := cmd.Metadata["context"].(*execcontext.Context)
+
+					//fmt.Fprintf(context.Out, "Starting echo server on port: %d\n", port)
+
+					//runBlock(context)
+
+					return nil
+				},
+			},
+		},
 		Before: func(_ ctx.Context, cmd *cli.Command) error {
 			var err error
 
-			if cmd.Args().Present() && cmd.Args().First() != "help" && cmd.Args().First() != "h" {
+			if cmd.Args().Present() && cmd.Args().First() != "help" &&
+				cmd.Args().First() != "h" && cmd.Args().First() != "echoserver" {
 				conf.RequestFilename = cmd.Args().First()
 			}
 
@@ -199,15 +219,20 @@ func setupCommand(
 				return err
 			}
 
-			context, err = execcontext.New(conf, in, stderr, stdout)
+			// convert the conf into a context that has resolved/converted values that we want to
+			// use when processing.  Store in metadata so we can access it in the action
+			cmd.Metadata["context"], err = execcontext.New(conf, in, stderr, stdout)
 
 			return err
 		},
-		Action: func(_ ctx.Context, _ *cli.Command) error {
-			runBlock(context)
+		Action: func(_ ctx.Context, cmd *cli.Command) error {
+			context := cmd.Metadata["context"].(*execcontext.Context)
+			ProcessRequests(context)
 			return nil
 		},
 	}
+
+	return command
 }
 
 // ProcessRequests wires up the request and response workers with channels
