@@ -21,10 +21,18 @@ var testBuildInfo = BuildInfo{Version: "testing", Commit: "123abc", Date: "2023-
 type GandaResults struct {
 	stderr  string
 	stdout  string
-	context *execcontext.Context
+	command *cli.Command
 }
 
-func (results GandaResults) assert(t *testing.T, expectedStandardOut string, expectedLog string) {
+func (results *GandaResults) GetContext() *execcontext.Context {
+	context := results.command.Metadata["context"]
+	if context == nil {
+		return nil
+	}
+	return context.(*execcontext.Context)
+}
+
+func (results *GandaResults) assert(t *testing.T, expectedStandardOut string, expectedLog string) {
 	assert.Equal(t, expectedStandardOut, results.stdout, "expected stdout")
 	assert.Equal(t, expectedLog, results.stderr, "expected logger stderr")
 }
@@ -41,7 +49,6 @@ func RunGanda(args []string, in io.Reader) (GandaResults, error) {
 }
 
 func runGanda(args []string, in io.Reader, runBlock func(context *execcontext.Context)) (GandaResults, error) {
-	var resultContext *execcontext.Context
 	stderr := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 
@@ -49,16 +56,16 @@ func runGanda(args []string, in io.Reader, runBlock func(context *execcontext.Co
 
 	// make the action a noop so we see the parsed args but don't actually run the command
 	command.Action = func(_ ctx.Context, cmd *cli.Command) error {
-		resultContext = cmd.Metadata["context"].(*execcontext.Context)
+		rc := cmd.Metadata["context"].(*execcontext.Context)
 		if runBlock != nil {
-			runBlock(resultContext)
+			runBlock(rc)
 		}
 		return nil
 	}
 
 	err := command.Run(ctx.Background(), args)
 
-	return GandaResults{stderr.String(), stdout.String(), resultContext}, err
+	return GandaResults{stderr.String(), stdout.String(), command}, err
 }
 
 type HttpServerStub struct {

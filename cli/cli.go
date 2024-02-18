@@ -34,14 +34,13 @@ func RunCommand(
 	return command.Run(ctx.Background(), args)
 }
 
-// create the cli.Command so it is wired up with the given in/stdout/stderr
-// this lets us mock out the input/output streams
+// SetupCommand creates the cli.Command so it is wired up with the given in/stdout/stderr
 func SetupCommand(
 	buildInfo BuildInfo,
 	in io.Reader,
 	stderr io.Writer,
 	stdout io.Writer,
-) cli.Command {
+) *cli.Command {
 	conf := config.New()
 
 	command := cli.Command{
@@ -232,7 +231,7 @@ func SetupCommand(
 		},
 	}
 
-	return command
+	return &command
 }
 
 // ProcessRequests wires up the request and response workers with channels

@@ -11,7 +11,7 @@ import (
 func TestHelp(t *testing.T) {
 	results, _ := ParseGandaArgs([]string{"ganda", "-h"})
 	assert.NotNil(t, results)
-	assert.Nil(t, results.context)      // context isn't set up when help is called
+	assert.Nil(t, results.GetContext()) // context isn't set up when help is called
 	assert.Equal(t, "", results.stderr) // help is not written to stderr when explicitly called
 	assert.Contains(t, results.stdout, "NAME:\n   ganda")
 }
@@ -19,7 +19,7 @@ func TestHelp(t *testing.T) {
 func TestVersion(t *testing.T) {
 	results, _ := ParseGandaArgs([]string{"ganda", "-v"})
 	assert.NotNil(t, results)
-	assert.Nil(t, results.context) // context isn't set up when version is called
+	assert.Nil(t, results.GetContext()) // context isn't set up when version is called
 	assert.Equal(t, "", results.stderr)
 	assert.Equal(t, "ganda version "+testBuildInfo.ToString()+"\n", results.stdout)
 }
@@ -27,23 +27,23 @@ func TestVersion(t *testing.T) {
 func TestWorkers(t *testing.T) {
 	results, _ := ParseGandaArgs([]string{"ganda", "-W", "10"})
 	assert.NotNil(t, results)
-	assert.Equal(t, 10, results.context.RequestWorkers)
-	assert.Equal(t, 10, results.context.ResponseWorkers)
+	assert.Equal(t, 10, results.GetContext().RequestWorkers)
+	assert.Equal(t, 10, results.GetContext().ResponseWorkers)
 
 	separateResults, _ := ParseGandaArgs([]string{"ganda", "-W", "10", "--response-workers", "5"})
 	assert.NotNil(t, separateResults)
-	assert.Equal(t, 10, separateResults.context.RequestWorkers)
-	assert.Equal(t, 5, separateResults.context.ResponseWorkers)
+	assert.Equal(t, 10, separateResults.GetContext().RequestWorkers)
+	assert.Equal(t, 5, separateResults.GetContext().ResponseWorkers)
 }
 
 func TestRetries(t *testing.T) {
 	results, _ := ParseGandaArgs([]string{"ganda"})
 	assert.NotNil(t, results)
-	assert.Equal(t, int64(0), results.context.Retries)
+	assert.Equal(t, int64(0), results.GetContext().Retries)
 
 	separateResults, _ := ParseGandaArgs([]string{"ganda", "--retry", "5"})
 	assert.NotNil(t, separateResults)
-	assert.Equal(t, int64(5), separateResults.context.Retries)
+	assert.Equal(t, int64(5), separateResults.GetContext().Retries)
 }
 
 func TestInvalidWorkers(t *testing.T) {
@@ -58,7 +58,7 @@ func TestInvalidWorkers(t *testing.T) {
 	for _, tc := range testCases {
 		results, _ := ParseGandaArgs([]string{"ganda", "-W", tc.input})
 		assert.NotNil(t, results)
-		assert.Nil(t, results.context)
+		assert.Nil(t, results.GetContext())
 		assert.Contains(t, results.stderr, tc.error)
 	}
 }
@@ -66,8 +66,8 @@ func TestInvalidWorkers(t *testing.T) {
 func TestResponseBodyFlags(t *testing.T) {
 	results, _ := ParseGandaArgs([]string{"ganda"})
 	assert.NotNil(t, results)
-	assert.NotNil(t, results.context)
-	assert.Equal(t, config.Raw, results.context.ResponseBody)
+	assert.NotNil(t, results.GetContext())
+	assert.Equal(t, config.Raw, results.GetContext().ResponseBody)
 
 	testCases := []struct {
 		input    string
@@ -85,18 +85,18 @@ func TestResponseBodyFlags(t *testing.T) {
 		if tc.input == "" {
 			results, _ := ParseGandaArgs([]string{"ganda"})
 			assert.NotNil(t, results)
-			assert.NotNil(t, results.context)
-			assert.Equal(t, tc.expected, results.context.ResponseBody)
+			assert.NotNil(t, results.GetContext())
+			assert.Equal(t, tc.expected, results.GetContext().ResponseBody)
 		} else {
 			shortResults, _ := ParseGandaArgs([]string{"ganda", "-B", tc.input})
 			assert.NotNil(t, shortResults)
-			assert.NotNil(t, shortResults.context)
-			assert.Equal(t, tc.expected, shortResults.context.ResponseBody)
+			assert.NotNil(t, shortResults.GetContext())
+			assert.Equal(t, tc.expected, shortResults.GetContext().ResponseBody)
 
 			longResults, _ := ParseGandaArgs([]string{"ganda", "--response-body", tc.input})
 			assert.NotNil(t, longResults)
-			assert.NotNil(t, longResults.context)
-			assert.Equal(t, tc.expected, longResults.context.ResponseBody)
+			assert.NotNil(t, longResults.GetContext())
+			assert.Equal(t, tc.expected, longResults.GetContext().ResponseBody)
 		}
 	}
 }
