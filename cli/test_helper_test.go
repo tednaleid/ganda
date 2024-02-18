@@ -43,25 +43,11 @@ func ParseGandaArgs(args []string) (GandaResults, error) {
 	return RunGanda(args, in)
 }
 
-// we want to control what stdin is sending and actually send the requests through
 func RunGanda(args []string, in io.Reader) (GandaResults, error) {
-	return runGanda(args, in, ProcessRequests)
-}
-
-func runGanda(args []string, in io.Reader, runBlock func(context *execcontext.Context)) (GandaResults, error) {
 	stderr := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 
 	command := SetupCommand(testBuildInfo, in, stderr, stdout)
-
-	// make the action a noop so we see the parsed args but don't actually run the command
-	command.Action = func(_ ctx.Context, cmd *cli.Command) error {
-		rc := cmd.Metadata["context"].(*execcontext.Context)
-		if runBlock != nil {
-			runBlock(rc)
-		}
-		return nil
-	}
 
 	err := command.Run(ctx.Background(), args)
 
