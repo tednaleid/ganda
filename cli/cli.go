@@ -193,10 +193,10 @@ func SetupCommand(
 					},
 				},
 				Action: func(_ ctx.Context, cmd *cli.Command) error {
-					//port := cmd.Int("port")
+					port := cmd.Int("port")
 					//context := cmd.Metadata["context"].(*execcontext.Context)
 
-					//fmt.Fprintf(context.Out, "Starting echo server on port: %d\n", port)
+					fmt.Fprintf(cmd.Writer, "Starting echo server on port: %d\n", port)
 
 					//runBlock(context)
 
