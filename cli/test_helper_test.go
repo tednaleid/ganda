@@ -44,12 +44,22 @@ func ParseGandaArgs(args []string) (GandaResults, error) {
 }
 
 func RunGanda(args []string, in io.Reader) (GandaResults, error) {
+	return RunGandaWithContext(args, in, ctx.Background())
+}
+
+func RunEchoserver(args []string, ctx ctx.Context) (GandaResults, error) {
+	in := strings.NewReader("")
+	return RunGandaWithContext(args, in, ctx)
+}
+
+// RunGandaWithContext allows us to pass in a cancellable context for testing
+func RunGandaWithContext(args []string, in io.Reader, ctx ctx.Context) (GandaResults, error) {
 	stderr := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)
 
 	command := SetupCommand(testBuildInfo, in, stderr, stdout)
 
-	err := command.Run(ctx.Background(), args)
+	err := command.Run(ctx, args)
 
 	return GandaResults{stderr.String(), stdout.String(), command}, err
 }

@@ -4,12 +4,16 @@ import (
 	ctx "context"
 	"fmt"
 	"github.com/tednaleid/ganda/config"
+	"github.com/tednaleid/ganda/echoserver"
 	"github.com/tednaleid/ganda/execcontext"
 	"github.com/tednaleid/ganda/parser"
 	"github.com/tednaleid/ganda/requests"
 	"github.com/tednaleid/ganda/responses"
 	"github.com/urfave/cli/v3"
 	"io"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 type BuildInfo struct {
@@ -193,14 +197,20 @@ func SetupCommand(
 					},
 				},
 				Action: func(_ ctx.Context, cmd *cli.Command) error {
-					port := cmd.Int("port")
-					//context := cmd.Metadata["context"].(*execcontext.Context)
+					shutdown, err := echoserver.Echoserver(8080, io.Writer(os.Stdout))
+					if err != nil {
+						fmt.Println("Error starting server:", err)
+						os.Exit(1)
+					}
 
-					fmt.Fprintf(cmd.Writer, "Starting echo server on port: %d\n", port)
+					// Wait until an interrupt signal is received
+					quit := make(chan os.Signal, 1)
+					signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+					<-quit
 
-					//runBlock(context)
+					fmt.Println("Shutting echoserver down.")
 
-					return nil
+					return shutdown()
 				},
 			},
 		},
