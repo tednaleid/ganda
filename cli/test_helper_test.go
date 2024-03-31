@@ -37,8 +37,8 @@ func (results *GandaResults) assert(t *testing.T, expectedStandardOut string, ex
 	assert.Equal(t, expectedLog, results.stderr, "expected logger stderr")
 }
 
-// we want to test parsing of arguments, we don't actually want to execute any requests
 func ParseGandaArgs(args []string) (GandaResults, error) {
+	// we want to test parsing of arguments, we don't actually want to execute any requests, empty stdin
 	in := strings.NewReader("")
 	return RunGanda(args, in)
 }
@@ -47,12 +47,6 @@ func RunGanda(args []string, in io.Reader) (GandaResults, error) {
 	return RunGandaWithContext(args, in, ctx.Background())
 }
 
-func RunEchoserver(args []string, ctx ctx.Context) (GandaResults, error) {
-	in := strings.NewReader("")
-	return RunGandaWithContext(args, in, ctx)
-}
-
-// RunGandaWithContext allows us to pass in a cancellable context for testing
 func RunGandaWithContext(args []string, in io.Reader, ctx ctx.Context) (GandaResults, error) {
 	stderr := new(bytes.Buffer)
 	stdout := new(bytes.Buffer)

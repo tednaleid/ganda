@@ -1,20 +1,24 @@
 package cli
 
 import (
-	ctx "context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v3"
+	"golang.org/x/net/context"
 	"io"
 	"net"
-	"net/http"
 	"strconv"
 	"testing"
-	"time"
 )
 
 func TestEchoserverDefaultPort(t *testing.T) {
-	results, _ := ParseGandaArgs([]string{"ganda", "echoserver"})
+	shutdownFunc := RunGandaAsync([]string{"ganda", "echoserver"}, nil)
+
+	// asserts that the port is open
+	waitForPort(8080)
+
+	// we aren't doing anything with the server, just wanted it to start up
+	results := shutdownFunc()
 	assert.NotNil(t, results)
 	subcommand := FindSubcommand(results.command, "echoserver")
 	assert.NotNil(t, subcommand)
@@ -23,77 +27,52 @@ func TestEchoserverDefaultPort(t *testing.T) {
 }
 
 func TestEchoserverOverridePort(t *testing.T) {
-	results, _ := ParseGandaArgs([]string{"ganda", "echoserver", "--port", "9090"})
+	port := 9090
+	shutdownFunc := RunGandaAsync([]string{"ganda", "echoserver", "--port", strconv.Itoa(port)}, nil)
+
+	// asserts that the port is open
+	waitForPort(port)
+
+	// we aren't doing anything with the server, just wanted it to start up
+	results := shutdownFunc()
 	assert.NotNil(t, results)
 	subcommand := FindSubcommand(results.command, "echoserver")
 	assert.NotNil(t, subcommand)
 	assert.Equal(t, subcommand.Name, "echoserver")
-	assert.Equal(t, subcommand.Int("port"), int64(9090))
+	assert.Equal(t, subcommand.Int("port"), int64(port))
 }
 
-func TestEchoserver(t *testing.T) {
-	ctx, stopEchoserver := ctx.WithCancel(ctx.Background())
-	defer stopEchoserver()
-
-	// Generate a random port number
-	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatalf("Failed to listen on port: %v", err)
-	}
-	port := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
-
-	listener.Close()
+// RunGandaAsync will run ganda in a separate goroutine and return a function that can
+// be called to cancel the ganda run and return the results
+func RunGandaAsync(args []string, in io.Reader) func() GandaResults {
+	resultsChan := make(chan GandaResults, 1)
+	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	go func() {
-		results, err := RunEchoserver([]string{"ganda", "echoserver", "--port", port}, ctx)
+		results, err := RunGandaWithContext(args, in, ctx)
 		if err != nil {
-			t.Errorf("RunGanda failed: %v", err)
+			results.stderr = fmt.Sprintf("RunGandaWithContext failed: %v", err)
 		}
-		assert.NotNil(t, results)
+		resultsChan <- results
+		close(resultsChan)
 	}()
 
-	start := time.Now()
+	return func() GandaResults {
+		cancelFunc()
+		result := <-resultsChan
+		return result
+	}
+}
 
-	// Wait for the server to start
+// func to check if an int port argument is open in a spin loop and will return when it is
+func waitForPort(port int) {
 	for {
-		conn, _ := net.DialTimeout("tcp", net.JoinHostPort("", port), time.Second)
-		if conn != nil {
+		conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", port))
+		if err == nil {
 			conn.Close()
 			break
 		}
-
-		// Check if more than 10 seconds have passed
-		if time.Since(start) > 10*time.Second {
-			t.Fatalf("Server did not start within 10 seconds")
-		}
-
-		time.Sleep(time.Millisecond)
 	}
-
-	// TODO start here: we want the echoserver to actually start up and echo back the request
-
-	// Send an HTTP request to the echoserver
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://localhost:%s", port), nil)
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("Failed to send request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Failed to read response body: %v", err)
-	}
-
-	// Compare the response body with the expected output
-	assert.Equal(t, "expected output", string(body))
-
-	stopEchoserver()
 }
 
 func FindSubcommand(c *cli.Command, name string) *cli.Command {

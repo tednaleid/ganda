@@ -26,18 +26,6 @@ func (buildInfo BuildInfo) ToString() string {
 	return buildInfo.Version + " " + buildInfo.Commit + " " + buildInfo.Date
 }
 
-// RunCommand allows us to mock out the args and input/output streams for testing
-func RunCommand(
-	buildInfo BuildInfo,
-	args []string,
-	in io.Reader,
-	err io.Writer,
-	out io.Writer,
-) error {
-	command := SetupCommand(buildInfo, in, err, out)
-	return command.Run(ctx.Background(), args)
-}
-
 // SetupCommand creates the cli.Command so it is wired up with the given in/stdout/stderr
 func SetupCommand(
 	buildInfo BuildInfo,
@@ -196,17 +184,24 @@ func SetupCommand(
 						Value: 8080, // Default port number
 					},
 				},
-				Action: func(_ ctx.Context, cmd *cli.Command) error {
-					shutdown, err := echoserver.Echoserver(8080, io.Writer(os.Stdout))
+				Action: func(ctx ctx.Context, cmd *cli.Command) error {
+					port := cmd.Int("port")
+					shutdown, err := echoserver.Echoserver(port, io.Writer(os.Stdout))
 					if err != nil {
 						fmt.Println("Error starting server:", err)
 						os.Exit(1)
 					}
 
-					// Wait until an interrupt signal is received
+					// Wait until an interrupt signal is received, or the context is cancelled
 					quit := make(chan os.Signal, 1)
 					signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-					<-quit
+
+					select {
+					case <-quit:
+						fmt.Println("Received interrupt signal, shutting down.")
+					case <-ctx.Done():
+						fmt.Println("Context cancelled, shutting down.")
+					}
 
 					fmt.Println("Shutting echoserver down.")
 
