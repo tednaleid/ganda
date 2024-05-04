@@ -15,8 +15,6 @@ type Context struct {
 	BaseDirectory          string
 	BaseRetryDelayDuration time.Duration
 	ConnectTimeoutDuration time.Duration
-	DiscardBody            bool
-	HashBody               bool
 	In                     io.Reader
 	Insecure               bool
 	JsonEnvelope           bool
@@ -40,8 +38,6 @@ func New(conf *config.Config, in io.Reader, stderr io.Writer, stdout io.Writer) 
 		BaseDirectory:          conf.BaseDirectory,
 		BaseRetryDelayDuration: time.Duration(conf.BaseRetryDelayMillis) * time.Millisecond,
 		ConnectTimeoutDuration: time.Duration(conf.ConnectTimeoutMillis) * time.Millisecond,
-		DiscardBody:            conf.DiscardBody,
-		HashBody:               conf.HashBody,
 		In:                     in,
 		Insecure:               conf.Insecure,
 		JsonEnvelope:           conf.JsonEnvelope,

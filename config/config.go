@@ -11,9 +11,6 @@ type Config struct {
 	BaseRetryDelayMillis int64
 	Color                bool
 	ConnectTimeoutMillis int64
-	DataTemplate         string
-	DiscardBody          bool
-	HashBody             bool
 	Insecure             bool
 	JsonEnvelope         bool
 	RequestFilename      string
@@ -33,9 +30,6 @@ func New() *Config {
 		BaseRetryDelayMillis: 1_000,
 		Color:                false,
 		ConnectTimeoutMillis: 10_000,
-		DataTemplate:         "",
-		DiscardBody:          false,
-		HashBody:             false,
 		Insecure:             false,
 		JsonEnvelope:         false,
 		RequestMethod:        "GET",

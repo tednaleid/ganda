@@ -36,12 +36,13 @@ func SetupCommand(
 	conf := config.New()
 
 	command := cli.Command{
-		Name: "ganda",
+		Name:  "ganda",
+		Usage: "make http requests in parallel",
 		Authors: []any{
 			"Ted Naleid <contact@naleid.com>",
 		},
-		UsageText:   "ganda [options] [file of urls/requests]  OR  <urls/requests on stdout> | ganda [options]",
-		Description: "Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel.",
+		UsageText:   "<urls/requests on stdout> | ganda [options]",
+		Description: "Pipe urls to ganda over stdout for it to make http requests to each url in parallel.",
 		Version:     buildInfo.ToString(),
 		Reader:      in,
 		Writer:      stdout,
@@ -84,22 +85,7 @@ func SetupCommand(
 				Value:       conf.ConnectTimeoutMillis,
 				Destination: &conf.ConnectTimeoutMillis,
 			},
-			&cli.StringFlag{
-				Name:        "data-template",
-				Aliases:     []string{"d"},
-				Usage:       "template string (or literal string) for the body, can use %s placeholders that will be replaced by fields 1..N from the input (all fields on a line after the url), '%%' can be used to insert a single percent symbol",
-				Destination: &conf.DataTemplate,
-			},
-			&cli.BoolFlag{
-				Name:        "discard-body",
-				Usage:       "EXPERIMENTAL: instead of emitting full body, just discard it",
-				Destination: &conf.DiscardBody,
-			},
-			&cli.BoolFlag{
-				Name:        "hash-body",
-				Usage:       "EXPERIMENTAL: instead of emitting full body in JSON, emit the SHA256 of the bytes of the body, useful for checksums, only has meaning with --json-envelope flag",
-				Destination: &conf.HashBody,
-			},
+
 			&cli.StringSliceFlag{
 				Name:    "header",
 				Aliases: []string{"H"},
