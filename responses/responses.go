@@ -141,7 +141,7 @@ func jsonEnvelopeResponseFn(bodyResponseFn emitResponseFn, responseBody config.R
 		}
 
 		// emit the body response
-		if responseBody == config.Discard || responseBody == config.Raw {
+		if responseBody == config.Discard || responseBody == config.Raw || responseBody == config.Escaped {
 			// no need to wrap either of these in quotes, Raw is assumed to be JSON
 			bodyBytesWritten, err = bodyResponseFn(response, out)
 		} else {

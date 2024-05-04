@@ -35,6 +35,32 @@ func TestRawOutputJSON(t *testing.T) {
 	assert.Equal(t, "{ \"url\": \"http://example.com\", \"code\": 200, \"body\": \"hello world\" }", writeCloser.ToString())
 }
 
+func TestEscapedOutput(t *testing.T) {
+	responseFn := determineEmitResponseFn(config.Escaped)
+	assert.NotNil(t, responseFn)
+
+	mockResponse := NewMockResponseBodyOnly("hello world")
+	writeCloser := NewMockWriteCloser()
+
+	responseFn(&ResponseWithContext{Response: mockResponse.Response}, writeCloser)
+
+	assert.True(t, mockResponse.BodyClosed())
+	assert.Equal(t, "\"hello world\"", writeCloser.ToString())
+}
+
+func TestEscapedOutputJSON(t *testing.T) {
+	responseFn := determineEmitJsonResponseWithContextFn(config.Escaped)
+	assert.NotNil(t, responseFn)
+
+	mockResponse := NewMockResponseBodyOnly("\"hello world\"")
+	writeCloser := NewMockWriteCloser()
+
+	responseFn(&ResponseWithContext{Response: mockResponse.Response, RequestContext: nil}, writeCloser)
+
+	assert.True(t, mockResponse.BodyClosed())
+	assert.Equal(t, "{ \"url\": \"http://example.com\", \"code\": 200, \"body\": \"\\\"hello world\\\"\" }", writeCloser.ToString())
+}
+
 func TestDiscardOutput(t *testing.T) {
 	responseFn := determineEmitResponseFn(config.Discard)
 	assert.NotNil(t, responseFn)

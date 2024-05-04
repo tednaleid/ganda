@@ -80,7 +80,7 @@ func TestResponseBodyWithJsonEnvelope(t *testing.T) {
 	}{
 		{"raw", config.Raw, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 200, \"body\": { \"foo\": \"/bar\" } }\n"},
 		{"discard", config.Discard, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 200, \"body\": null }\n"},
-		{"escaped", config.Escaped, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 200, \"body\": \"\"{ \\\"foo\\\": \\\"/bar\\\" }\"\" }\n"},
+		{"escaped", config.Escaped, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 200, \"body\": \"{ \\\"foo\\\": \\\"/bar\\\" }\" }\n"},
 		{"base64", config.Base64, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 200, \"body\": \"eyAiZm9vIjogIi9iYXIiIH0=\" }\n"},
 		{"sha256", config.Sha256, "{ \"url\": \"" + server.urlFor("bar") + "\", \"code\": 200, \"body\": \"f660cd1420c6acd9408932b9983909c26ab6cb21ffb40525670a7b7aa67092ec\" }\n"},
 	}

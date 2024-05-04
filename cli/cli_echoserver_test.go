@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -40,6 +41,26 @@ func TestEchoserverOverridePort(t *testing.T) {
 	assert.NotNil(t, subcommand)
 	assert.Equal(t, subcommand.Name, "echoserver")
 	assert.Equal(t, subcommand.Int("port"), int64(port))
+}
+
+// Runs the Echoserver and then runs ganda against it
+func TestAllTogetherNow(t *testing.T) {
+	port := 9090
+	shutdownFunc := RunGandaAsync([]string{"ganda", "echoserver", "--port", strconv.Itoa(port)}, nil)
+
+	waitForPort(port)
+
+	url := fmt.Sprintf("http://localhost:%d/hello/world", port)
+
+	runResults, _ := RunGanda([]string{"ganda"}, strings.NewReader(url+"\n"))
+
+	runResults.assert(
+		t,
+		"hello/world\n",
+		"Response: 200 "+url+"\n",
+	)
+
+	shutdownFunc()
 }
 
 // RunGandaAsync will run ganda in a separate goroutine and return a function that can
