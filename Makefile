@@ -2,7 +2,8 @@ all: lint test build
 
 lint:
 	go fmt
-	golint
+	gofmt -s -w .
+	go vet ./...
 
 build: 
 	go build -o ganda -v
