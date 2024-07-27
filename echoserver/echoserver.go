@@ -2,6 +2,7 @@ package echoserver
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -9,28 +10,47 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
 
+type LogEntry struct {
+	Time        string            `json:"time"`
+	ID          string            `json:"id"`
+	RemoteIP    string            `json:"remote_ip"`
+	Host        string            `json:"host"`
+	Method      string            `json:"method"`
+	URI         string            `json:"uri"`
+	UserAgent   string            `json:"user_agent"`
+	Status      int               `json:"status"`
+	Headers     map[string]string `json:"headers"`
+	RequestBody string            `json:"request_body"`
+}
+
 func Echoserver(port int64, out io.Writer) (func() error, error) {
 	e := echo.New()
 	e.HideBanner = true
+	e.HidePort = true
 
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Output: out,
+	e.Use(middleware.BodyDump(func(c echo.Context, reqBody, resBody []byte) {
+		logEntryJSON := createLogEntry(c, reqBody)
+		fmt.Fprintf(out, "%s\n", logEntryJSON)
 	}))
 
-	e.Use(middleware.Logger())
-	e.Use(middleware.BodyDump(func(c echo.Context, reqBody, resBody []byte) {}))
 	e.Use(middleware.Recover())
+	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{
+		Level: 5,
+	}))
 
 	e.GET("/*", getResult)
 	e.POST("/*", postResult)
 
 	s := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: e,
+		Addr:         fmt.Sprintf(":%d", port),
+		Handler:      e,
+		ReadTimeout:  5 * time.Minute,
+		WriteTimeout: 5 * time.Minute,
 	}
 
 	go func() {
@@ -53,21 +73,39 @@ func Echoserver(port int64, out io.Writer) (func() error, error) {
 }
 
 func getResult(c echo.Context) error {
-	id := c.Param("*")
-	return c.String(http.StatusOK, id)
+	reqBody, _ := io.ReadAll(c.Request().Body)
+	logEntryJSON := createLogEntry(c, reqBody)
+	return c.JSONBlob(http.StatusOK, logEntryJSON)
 }
 
 func postResult(c echo.Context) error {
-	if c.Request().Body != nil {
-		reqBody, _ := io.ReadAll(c.Request().Body)
-		reqString := string(reqBody)
+	reqBody, _ := io.ReadAll(c.Request().Body)
+	logEntryJSON := createLogEntry(c, reqBody)
+	return c.JSONBlob(http.StatusOK, logEntryJSON)
+}
 
-		if len(reqString) > 0 {
-			println(reqString)
-			return c.String(http.StatusOK, reqString)
-		}
+func createLogEntry(c echo.Context, reqBody []byte) []byte {
+	headers := formatHeaders(c.Request().Header)
+	logEntry := LogEntry{
+		Time:        time.Now().Format(time.RFC3339),
+		ID:          c.Response().Header().Get(echo.HeaderXRequestID),
+		RemoteIP:    c.RealIP(),
+		Host:        c.Request().Host,
+		Method:      c.Request().Method,
+		URI:         c.Request().RequestURI,
+		UserAgent:   c.Request().UserAgent(),
+		Status:      c.Response().Status,
+		Headers:     headers,
+		RequestBody: string(reqBody),
 	}
+	logEntryJSON, _ := json.Marshal(logEntry)
+	return logEntryJSON
+}
 
-	id := c.Param("*")
-	return c.String(http.StatusOK, id)
+func formatHeaders(headers http.Header) map[string]string {
+	formattedHeaders := make(map[string]string)
+	for key, values := range headers {
+		formattedHeaders[key] = strings.Join(values, ", ")
+	}
+	return formattedHeaders
 }

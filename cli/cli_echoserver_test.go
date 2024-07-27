@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/tednaleid/ganda/echoserver"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/net/context"
 	"io"
@@ -54,11 +56,19 @@ func TestAllTogetherNow(t *testing.T) {
 
 	runResults, _ := RunGanda([]string{"ganda"}, strings.NewReader(url+"\n"))
 
-	runResults.assert(
-		t,
-		"hello/world\n",
-		"Response: 200 "+url+"\n",
-	)
+	assert.Equal(t, "Response: 200 "+url+"\n", runResults.stderr, "expected logger stderr")
+
+	var logEntry echoserver.LogEntry
+	if err := json.Unmarshal([]byte(runResults.stdout), &logEntry); err != nil {
+		t.Fatalf("failed to unmarshal response body: %v", err)
+	}
+
+	assert.Equal(t, "GET", logEntry.Method, "expected method")
+	assert.Equal(t, "/hello/world", logEntry.URI, "expected URI")
+	assert.Equal(t, "Go-http-client/1.1", logEntry.UserAgent, "expected user agent")
+	assert.Equal(t, 200, logEntry.Status, "expected status")
+	assert.Contains(t, logEntry.Headers, "Accept-Encoding", "expected headers to contain Accept-Encoding")
+	assert.Contains(t, logEntry.Headers, "User-Agent", "expected headers to contain User-Agent")
 
 	shutdownFunc()
 }

@@ -1,6 +1,7 @@
 package echoserver
 
 import (
+	"encoding/json"
 	"io"
 	"net"
 	"net/http"
@@ -59,8 +60,29 @@ func TestEchoserverGET(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if string(body) != "foobar" {
-			t.Errorf("expected body 'foobar', got '%s'", body)
+		var logEntry LogEntry
+		if err := json.Unmarshal(body, &logEntry); err != nil {
+			t.Fatalf("failed to unmarshal response body: %v", err)
+		}
+
+		if logEntry.URI != "/foobar" {
+			t.Errorf("expected uri '/foobar', got '%s'", logEntry.URI)
+		}
+
+		if logEntry.Method != "GET" {
+			t.Errorf("expected method 'GET', got '%s'", logEntry.Method)
+		}
+
+		if logEntry.Status != 200 {
+			t.Errorf("expected status 200, got %d", logEntry.Status)
+		}
+
+		if logEntry.RequestBody != "" {
+			t.Errorf("expected request_body to be empty, got '%s'", logEntry.RequestBody)
+		}
+
+		if logEntry.Headers["User-Agent"] != "Go-http-client/1.1" {
+			t.Errorf("expected User-Agent header to be set")
 		}
 	})
 }
@@ -85,8 +107,29 @@ func TestEchoserverPOST(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if string(body) != jsonBody {
-			t.Errorf("expected body '%s', got '%s'", jsonBody, body)
+		var logEntry LogEntry
+		if err := json.Unmarshal(body, &logEntry); err != nil {
+			t.Fatalf("failed to unmarshal response body: %v", err)
+		}
+
+		if logEntry.URI != "/foobar" {
+			t.Errorf("expected uri '/foobar', got '%s'", logEntry.URI)
+		}
+
+		if logEntry.Method != "POST" {
+			t.Errorf("expected method 'GET', got '%s'", logEntry.Method)
+		}
+
+		if logEntry.Status != 200 {
+			t.Errorf("expected status 200, got %d", logEntry.Status)
+		}
+
+		if logEntry.RequestBody != jsonBody {
+			t.Errorf("expected request_body to be empty, got '%s'", logEntry.RequestBody)
+		}
+
+		if logEntry.Headers["User-Agent"] != "Go-http-client/1.1" {
+			t.Errorf("expected User-Agent header to be set")
 		}
 	})
 }
