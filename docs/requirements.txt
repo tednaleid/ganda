@@ -1,0 +1,5 @@
+ipykernel
+ipython
+jupyter_client
+jupyter_core
+bash_kernel

@@ -11,9 +11,11 @@ import (
 	"github.com/tednaleid/ganda/responses"
 	"github.com/urfave/cli/v3"
 	"io"
+	"math"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 type BuildInfo struct {
@@ -49,7 +51,7 @@ func SetupCommand(
 		ErrWriter:   stderr,
 		Flags: []cli.Flag{
 			&cli.IntFlag{
-				Name:        "base-retry-ms",
+				Name:        "base-retry-millis",
 				Usage:       "the base number of milliseconds to wait before retrying a request, exponential backoff is used for retries",
 				Value:       conf.BaseRetryDelayMillis,
 				Destination: &conf.BaseRetryDelayMillis,
@@ -80,7 +82,7 @@ func SetupCommand(
 				},
 			},
 			&cli.IntFlag{
-				Name:        "connect-timeout-ms",
+				Name:        "connect-timeout-millis",
 				Usage:       "number of milliseconds to wait for a connection to be established before timeout",
 				Value:       conf.ConnectTimeoutMillis,
 				Destination: &conf.ConnectTimeoutMillis,
@@ -111,6 +113,7 @@ func SetupCommand(
 			&cli.StringFlag{
 				Name:        "output",
 				Aliases:     []string{"o"},
+				Usage:       "if flag is present, save response bodies to files in the specified directory",
 				Destination: &conf.BaseDirectory,
 			},
 			&cli.StringFlag{
@@ -169,10 +172,16 @@ func SetupCommand(
 						Usage: "Port number to start the echo server on",
 						Value: 8080, // Default port number
 					},
+					&cli.IntFlag{
+						Name:  "delay-millis",
+						Usage: "Number of milliseconds to delay responding",
+						Value: 0, // Default delay is 0 milliseconds
+					},
 				},
 				Action: func(ctx ctx.Context, cmd *cli.Command) error {
 					port := cmd.Int("port")
-					shutdown, err := echoserver.Echoserver(port, io.Writer(os.Stdout))
+					delayMillis := cmd.Int("delay-millis")
+					shutdown, err := echoserver.Echoserver(port, delayMillis, io.Writer(os.Stdout))
 					if err != nil {
 						fmt.Println("Error starting server:", err)
 						os.Exit(1)
@@ -231,7 +240,15 @@ func ProcessRequests(context *execcontext.Context) {
 	requestsWithContextChannel := make(chan parser.RequestWithContext)
 	responsesWithContextChannel := make(chan *responses.ResponseWithContext)
 
-	requestWaitGroup := requests.StartRequestWorkers(requestsWithContextChannel, responsesWithContextChannel, context)
+	var rateLimitTicker *time.Ticker
+
+	// don't throttle if we're not limiting the number of requests per second
+	if context.ThrottlePerSecond != math.MaxInt32 {
+		rateLimitTicker = time.NewTicker(time.Second / time.Duration(context.ThrottlePerSecond))
+		defer rateLimitTicker.Stop()
+	}
+
+	requestWaitGroup := requests.StartRequestWorkers(requestsWithContextChannel, responsesWithContextChannel, rateLimitTicker, context)
 	responseWaitGroup := responses.StartResponseWorkers(responsesWithContextChannel, context)
 
 	err := parser.SendRequests(requestsWithContextChannel, context.In, context.RequestMethod, context.RequestHeaders)

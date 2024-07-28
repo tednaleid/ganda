@@ -28,7 +28,7 @@ type RequestEcho struct {
 	RequestBody string            `json:"request_body"`
 }
 
-func Echoserver(port int64, out io.Writer) (func() error, error) {
+func Echoserver(port int64, delayMillis int64, out io.Writer) (func() error, error) {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
@@ -42,6 +42,16 @@ func Echoserver(port int64, out io.Writer) (func() error, error) {
 	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{
 		Level: 5,
 	}))
+
+	echoRequest := func(c echo.Context) error {
+		// quick and dirty way to simulate latency, sleeps are bad mkay
+		if delayMillis > 0 {
+			time.Sleep(time.Duration(delayMillis) * time.Millisecond)
+		}
+		reqBody, _ := io.ReadAll(c.Request().Body)
+		logEntryJSON := requestToJSON(c, reqBody)
+		return c.JSONBlob(http.StatusOK, logEntryJSON)
+	}
 
 	e.Any("/*", echoRequest)
 
@@ -69,12 +79,6 @@ func Echoserver(port int64, out io.Writer) (func() error, error) {
 	}
 
 	return shutdown, nil
-}
-
-func echoRequest(c echo.Context) error {
-	reqBody, _ := io.ReadAll(c.Request().Body)
-	logEntryJSON := requestToJSON(c, reqBody)
-	return c.JSONBlob(http.StatusOK, logEntryJSON)
 }
 
 func requestToJSON(c echo.Context, reqBody []byte) []byte {

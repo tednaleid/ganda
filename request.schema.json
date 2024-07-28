@@ -1,0 +1,30 @@
+{
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string",
+        "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "TRACE", "CONNECT"]
+      },
+      "headers": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "context": {
+        "type": ["string", "number", "boolean", "object", "array", "null"]
+      },
+      "body": {
+        "type": ["string", "number", "boolean", "object", "array", "null"]
+      },
+      "bodyType": {
+        "type": "string",
+        "enum": ["escaped", "base64", "json", ""]
+      }
+    },
+    "required": ["url"],
+    "additionalProperties": false
+  }

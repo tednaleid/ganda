@@ -7,7 +7,6 @@ import (
 	"github.com/tednaleid/ganda/logger"
 	"github.com/tednaleid/ganda/parser"
 	"github.com/tednaleid/ganda/responses"
-	"math"
 	"net/http"
 	"sync"
 	"time"
@@ -39,18 +38,11 @@ func NewHttpClient(context *execcontext.Context) *HttpClient {
 func StartRequestWorkers(
 	requestsWithContext <-chan parser.RequestWithContext,
 	responsesWithContext chan<- *responses.ResponseWithContext,
+	rateLimitTicker *time.Ticker,
 	context *execcontext.Context,
 ) *sync.WaitGroup {
 	var requestWaitGroup sync.WaitGroup
 	requestWaitGroup.Add(context.RequestWorkers)
-
-	var rateLimitTicker *time.Ticker
-
-	// don't throttle if we're not limiting the number of requests per second
-	if context.ThrottlePerSecond != math.MaxInt32 {
-		rateLimitTicker = time.NewTicker(time.Second / time.Duration(context.ThrottlePerSecond))
-		defer rateLimitTicker.Stop()
-	}
 
 	for i := 1; i <= context.RequestWorkers; i++ {
 		go func() {

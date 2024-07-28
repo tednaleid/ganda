@@ -10,3 +10,5 @@ dist
 ganda-amd64
 
 dist/
+node_modules
+package*.json

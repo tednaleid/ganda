@@ -26,11 +26,12 @@ func getAvailablePort() (int, error) {
 
 func withEchoserver(t *testing.T, test func(port int)) {
 	port, err := getAvailablePort()
+	delayMillis := 0
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	shutdown, err := Echoserver(int64(port), io.Discard)
+	shutdown, err := Echoserver(int64(port), int64(delayMillis), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -36,7 +36,7 @@ func TestTimeout(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunGanda([]string{"ganda", "--connect-timeout-ms", "1"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunGanda([]string{"ganda", "--connect-timeout-millis", "1"}, server.stubStdinUrl("bar"))
 
 	url := server.urlFor("bar")
 
@@ -60,7 +60,7 @@ func TestRetryEnabledShouldRetry5XX(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunGanda([]string{"ganda", "--retry", "1", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunGanda([]string{"ganda", "--retry", "1", "--base-retry-millis", "1"}, server.stubStdinUrl("bar"))
 
 	url := server.urlFor("bar")
 
@@ -81,7 +81,7 @@ func TestRunningOutOfRetriesShouldStopProcessing(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunGanda([]string{"ganda", "--retry", "2", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunGanda([]string{"ganda", "--retry", "2", "--base-retry-millis", "1"}, server.stubStdinUrl("bar"))
 
 	url := server.urlFor("bar")
 
@@ -102,7 +102,7 @@ func TestRetryEnabledShouldNotRetry4XX(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunGanda([]string{"ganda", "--retry", "1", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunGanda([]string{"ganda", "--retry", "1", "--base-retry-millis", "1"}, server.stubStdinUrl("bar"))
 
 	url := server.urlFor("bar")
 
@@ -125,7 +125,7 @@ func TestRetryEnabledShouldRetryTimeout(t *testing.T) {
 	}))
 	defer server.Server.Close()
 
-	runResults, _ := RunGanda([]string{"ganda", "--connect-timeout-ms", "10", "--retry", "1", "--base-retry-ms", "1"}, server.stubStdinUrl("bar"))
+	runResults, _ := RunGanda([]string{"ganda", "--connect-timeout-millis", "10", "--retry", "1", "--base-retry-millis", "1"}, server.stubStdinUrl("bar"))
 	url := server.urlFor("bar")
 
 	//assert.Equal(t, 2, requestCount, "expected a second request")

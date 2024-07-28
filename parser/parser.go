@@ -43,7 +43,7 @@ func SendRequests(
 	return SendUrlsRequests(requestsWithContext, reader, requestMethod, staticHeaders)
 }
 
-// Each line is an URL and optionally some CSV context that can be passed through
+// Each line is an URL and optionally some TSV context that can be passed through
 // an emitted along with the response output
 func SendUrlsRequests(
 	requestsWithContext chan<- RequestWithContext,
@@ -51,12 +51,12 @@ func SendUrlsRequests(
 	requestMethod string,
 	staticHeaders []config.RequestHeader,
 ) error {
-	csvReader := csv.NewReader(reader)
-	csvReader.Comma = '\t'
-	csvReader.FieldsPerRecord = -1
+	tsvReader := csv.NewReader(reader)
+	tsvReader.Comma = '\t'
+	tsvReader.FieldsPerRecord = -1
 
 	for {
-		record, err := csvReader.Read()
+		record, err := tsvReader.Read()
 		if err == io.EOF {
 			break
 		} else if err != nil {
@@ -198,10 +198,11 @@ func createRequest(url string, body io.Reader, requestMethod string, requestHead
 		panic(err)
 	}
 
+	request.Header.Add("connection", "keep-alive")
+
 	for _, header := range requestHeaders {
 		request.Header.Add(header.Key, header.Value)
 	}
 
-	request.Header.Add("connection", "keep-alive")
 	return request
 }
