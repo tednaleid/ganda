@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-type LogEntry struct {
+type RequestEcho struct {
 	Time        string            `json:"time"`
 	ID          string            `json:"id"`
 	RemoteIP    string            `json:"remote_ip"`
@@ -34,7 +34,7 @@ func Echoserver(port int64, out io.Writer) (func() error, error) {
 	e.HidePort = true
 
 	e.Use(middleware.BodyDump(func(c echo.Context, reqBody, resBody []byte) {
-		logEntryJSON := createLogEntry(c, reqBody)
+		logEntryJSON := requestToJSON(c, reqBody)
 		fmt.Fprintf(out, "%s\n", logEntryJSON)
 	}))
 
@@ -43,8 +43,7 @@ func Echoserver(port int64, out io.Writer) (func() error, error) {
 		Level: 5,
 	}))
 
-	e.GET("/*", getResult)
-	e.POST("/*", postResult)
+	e.Any("/*", echoRequest)
 
 	s := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
@@ -72,21 +71,15 @@ func Echoserver(port int64, out io.Writer) (func() error, error) {
 	return shutdown, nil
 }
 
-func getResult(c echo.Context) error {
+func echoRequest(c echo.Context) error {
 	reqBody, _ := io.ReadAll(c.Request().Body)
-	logEntryJSON := createLogEntry(c, reqBody)
+	logEntryJSON := requestToJSON(c, reqBody)
 	return c.JSONBlob(http.StatusOK, logEntryJSON)
 }
 
-func postResult(c echo.Context) error {
-	reqBody, _ := io.ReadAll(c.Request().Body)
-	logEntryJSON := createLogEntry(c, reqBody)
-	return c.JSONBlob(http.StatusOK, logEntryJSON)
-}
-
-func createLogEntry(c echo.Context, reqBody []byte) []byte {
+func requestToJSON(c echo.Context, reqBody []byte) []byte {
 	headers := formatHeaders(c.Request().Header)
-	logEntry := LogEntry{
+	requestEcho := RequestEcho{
 		Time:        time.Now().Format(time.RFC3339),
 		ID:          c.Response().Header().Get(echo.HeaderXRequestID),
 		RemoteIP:    c.RealIP(),
@@ -98,8 +91,8 @@ func createLogEntry(c echo.Context, reqBody []byte) []byte {
 		Headers:     headers,
 		RequestBody: string(reqBody),
 	}
-	logEntryJSON, _ := json.Marshal(logEntry)
-	return logEntryJSON
+	requestEchoJson, _ := json.Marshal(requestEcho)
+	return requestEchoJson
 }
 
 func formatHeaders(headers http.Header) map[string]string {

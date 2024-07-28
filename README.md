@@ -42,44 +42,9 @@ to install in your `$GOPATH/bin` (which you want in your `$PATH`)
 
 # Usage
 
-    ganda help
-    NAME:
-       ganda
 
-    USAGE:
-       ganda [options] [file of urls/requests]  OR  <urls/requests on stdout> | ganda [options]
+-- TODO: update
 
-    VERSION:
-       0.1.10
-
-    DESCRIPTION:
-       Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel.
-
-    AUTHOR:
-       Ted Naleid <contact@naleid.com>
-
-    COMMANDS:
-         help, h  Shows a list of commands or help for one command
-
-    GLOBAL OPTIONS:
-       --output value, -o value         the output base directory to save downloaded files, if omitted will stream response bodies to stdout
-       --request value, -X value        HTTP request method to use (default: "GET")
-       --header value, -H value         headers to send with every request, can be used multiple times (gzip and keep-alive are already there)
-       --data-template value, -d value  template string (or literal string) for the body, can use %s placeholders that will be replaced by fields 1..N from the input (all fields on a line after the url), '%%' can be used to insert a single percent symbol
-       --workers value, -W value        number of concurrent workers that will be making requests, increase this for more requests in parallel (default: 1)
-       --response-workers value         number of concurrent workers that will be processing responses, if not specified will be same as --workers (default: 0)
-       --subdir-length value, -S value  length of hashed subdirectory name to put saved files when using -o; use 2 for > 5k urls, 4 for > 5M urls (default: 0)
-       --connect-timeout value          number of seconds to wait for a connection to be established before timeout (default: 10)
-       --throttle value, -t value       max number of requests to process per second, default is unlimited (default: -1)
-       --insecure, -k                   if flag is present, skip verification of https certificates
-       --silent, -s                     if flag is present, omit showing response code for each url only output response bodies
-       --no-color                       if flag is present, don't add color to success/warn messages
-       --json-envelope                  EXPERIMENTAL: emit result with JSON envelope with url, status, length, and body fields, assumes result is valid json
-       --hash-body                      EXPERIMENTAL: instead of emitting full body in JSON, emit the SHA256 of the bytes of the body, useful for checksums, only has meaning with --json-envelope flag
-       --discard-body                   EXPERIMENTAL: instead of emitting full body, just discard it
-       --retry value                    max number of retries on transient errors (5XX status codes/timeouts) to attempt (default: 0)
-       --help, -h                       show help
-       --version, -v                    print the version
        
 # Example
 

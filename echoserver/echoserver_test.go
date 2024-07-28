@@ -60,7 +60,7 @@ func TestEchoserverGET(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		var logEntry LogEntry
+		var logEntry RequestEcho
 		if err := json.Unmarshal(body, &logEntry); err != nil {
 			t.Fatalf("failed to unmarshal response body: %v", err)
 		}
@@ -107,7 +107,7 @@ func TestEchoserverPOST(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		var logEntry LogEntry
+		var logEntry RequestEcho
 		if err := json.Unmarshal(body, &logEntry); err != nil {
 			t.Fatalf("failed to unmarshal response body: %v", err)
 		}

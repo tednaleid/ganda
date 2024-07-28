@@ -58,7 +58,7 @@ func TestAllTogetherNow(t *testing.T) {
 
 	assert.Equal(t, "Response: 200 "+url+"\n", runResults.stderr, "expected logger stderr")
 
-	var logEntry echoserver.LogEntry
+	var logEntry echoserver.RequestEcho
 	if err := json.Unmarshal([]byte(runResults.stdout), &logEntry); err != nil {
 		t.Fatalf("failed to unmarshal response body: %v", err)
 	}
