@@ -119,3 +119,47 @@ GLOBAL OPTIONS:
 --help, -h                                             show help (default: false)
 --version, -v                                          print the version (default: false)
 ```
+
+# Sample Advanced Use Cases
+
+I've used `ganda` to quickly solve problems that would have otherwise required writing a custom program.  
+
+#### Consuming Events From Kafka and Calling an API
+
+Using `kcat` (https://github.com/edenhill/kcat) (or another Kafka CLI that emits events from Kafka topics), we can consume all the events on a Kafka topic, then use `jq` to pull an identifier out of an event and make an API call for every identifier:
+
+```
+# get all events on the `my-topic` topic
+kcat -C -e -q -b broker.example.com:9092 -t my-topic |\
+  # parse the identifier out of the JSON event
+  jq -r '.identifier' |\
+  # use awk to turn that identifier into an URL
+  awk '{ printf "https://api.example.com/item/%s\n", $1}' |\
+  # have 5 workers make reqeusts and use a static header with the auth token for every request
+  ganda -s -W 5 -H "Authorization: Bearer <the_token>" |\
+  # parse the `value` out of the response and emit it on stdout
+  jq -r '.value'
+```
+
+#### Ask for all pages/buckets from an API
+
+Here, we ask for the first 100 pages from an API.  Each returns a JSON list of `status` fields.  Pull those `status` fields out and do a unique count on the distribution.
+
+```
+# emit a sequence of the numbers from 1 to 100
+seq 100 |\
+  # use awk to create an url asking for each of the buckets
+  awk '{printf "https://example.com/items?type=BUCKET&value=%s\n", $1}' |\
+  # use a single ganda worker to ask for each page in sequence
+  ganda -s -W 1 -H "Authorization: Bearer <the_token>" |\
+  # use jq to parse the resulting json and grab the status
+  jq -r '.items[].status' | 
+  sort | 
+  # get a unique count of how many times each status appears
+  uniq -c
+
+  41128 DELETED
+   6491 INITIATED
+  34222 PROCESSED
+   5032 ERRORED
+```
