@@ -55,3 +55,4 @@ brews:
     commit_author:
       name: tednaleid
       email: contact@naleid.com
+    directory: Formula
