@@ -9,7 +9,7 @@ By default, it will echo all response bodies to standard out but can optionally 
 ### Documentation Links
 
 * [Installation](#installation)
-* [User Guide](docs/GUIDE.ipynb)
+* [A Tour of `ganda`](docs/GANDA_TOUR.ipynb)
 
 # Quick Examples
 
@@ -29,7 +29,7 @@ ganda my_file_of_urls.txt
 
 If you give `ganda` a `-o <directory name>` parameter, it will save the body of each in a separate file inside `<directory name>`.  If you want a single file, just pipe stdout the normal way `... | ganda > result.txt`.
 
-For many more examples, take a look at the [User Guide](docs/GUIDE.ipynb).
+For many more examples, take a look at the [Tour of `ganda`](docs/GANDA_TOUR.ipynb).
 
 # Why use `ganda` over `curl` (or `wget`, `httpie`, `postman-cli`, ...)?
 

@@ -1,6 +1,6 @@
 # Setup/Installation
 
-I'm using VSCode's python and jupyter plugins to run the [GUIDE.ipynb](GUIDE.ipynb) notebook:
+I'm using VSCode's python and jupyter plugins to run the [GANDA_TOUR.ipynb](GANDA_TOUR.ipynb) notebook:
 
 * https://marketplace.visualstudio.com/items?itemName=ms-python.python
 * https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter
@@ -78,4 +78,4 @@ When you run the first bash cell, VSCode will prompt you for the kernel to use. 
 
 ## Notebooks
 
-- GUIDE.ipynb - An interactive bash jupyter notebook that demonstrates how to use `ganda` to make parallel http requests and process the responses in a pipeline.
+- GANDA_TOUR.ipynb - An interactive bash jupyter notebook that demonstrates how to use `ganda` to make parallel http requests and process the responses in a pipeline.
