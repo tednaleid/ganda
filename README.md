@@ -15,7 +15,7 @@ By default, it will echo all response bodies to standard out but can optionally 
 
 Given a file with a list of IDs in it, you could do something like:
 
-```
+```bash
 cat id_list.txt | awk '{printf "https://api.example.com/resource/%s?key=foo\n", $1}' | ganda
 ```
     
@@ -23,7 +23,7 @@ and that will pipe a stream of URLs into `ganda` in the format `https://api.exam
 
 Alternatively, if you have a file full of URLs (one per line), you can just tell `ganda` to run that:
 
-```
+```bash
 ganda my_file_of_urls.txt
 ```
 
@@ -55,7 +55,7 @@ and don't have the same flexibility in how the response is handled.
 You currently have 3 options:
 
 1. on MacOS you can install using [homebrew](https://brew.sh/)
-```
+```bash
 brew tap tednaleid/homebrew-ganda
 brew install ganda
 ```
@@ -64,13 +64,13 @@ brew install ganda
 
 3. Compile from source with golang:
 
-```
+```bash
 go install github.com/tednaleid/ganda@latest
 ```
 
 or, if you have this repo downloaded locally:
 
-```
+```bash
 make install
 ```
 
@@ -78,7 +78,7 @@ to install in your `$GOPATH/bin` (which you want in your `$PATH`)
 
 # Usage
 
-```
+```bash
 ganda help
 
 NAME:
@@ -88,7 +88,7 @@ USAGE:
 <urls/requests on stdout> | ganda [options]
 
 VERSION:
-1.0.0
+   1.0.1 faee8ce3b09ad2d65e438e3187cbd7568c5a6da1 2024-07-29T21:57:14Z
 
 DESCRIPTION:
 Pipe urls to ganda over stdout for it to make http requests to each url in parallel.
@@ -128,7 +128,7 @@ I've used `ganda` to quickly solve problems that would have otherwise required w
 
 Using `kcat` (https://github.com/edenhill/kcat) (or another Kafka CLI that emits events from Kafka topics), we can consume all the events on a Kafka topic, then use `jq` to pull an identifier out of an event and make an API call for every identifier:
 
-```
+```bash
 # get all events on the `my-topic` topic
 kcat -C -e -q -b broker.example.com:9092 -t my-topic |\
   # parse the identifier out of the JSON event
@@ -145,7 +145,7 @@ kcat -C -e -q -b broker.example.com:9092 -t my-topic |\
 
 Here, we ask for the first 100 pages from an API.  Each returns a JSON list of `status` fields.  Pull those `status` fields out and do a unique count on the distribution.
 
-```
+```bash
 # emit a sequence of the numbers from 1 to 100
 seq 100 |\
   # use awk to create an url asking for each of the buckets
