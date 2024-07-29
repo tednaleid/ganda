@@ -16,7 +16,7 @@ By default, it will echo all response bodies to standard out but can optionally 
 Given a file with a list of IDs in it, you could do something like:
 
 ```
-cat id_list.txt | awk '{printf "https://api.example.com/resource/%s?apikey=foo\n", $1}' | ganda
+cat id_list.txt | awk '{printf "https://api.example.com/resource/%s?key=foo\n", $1}' | ganda
 ```
     
 and that will pipe a stream of URLs into `ganda` in the format `https://api.example.com/resource/<ID>?apikey=foo`.
@@ -34,7 +34,7 @@ For many more examples, take a look at the [Tour of `ganda`](docs/GANDA_TOUR.ipy
 # Why use `ganda` over `curl` (or `wget`, `httpie`, `postman-cli`, ...)?
 
 All existing CLI tools for making HTTP requests are oriented around making a single request at a time.  They're great
-at starting a pipe of commands (ex: `curl <url> | jq .`) but they're awkward to use beyond a few reqeusts.
+at starting a pipe of commands (ex: `curl <url> | jq .`) but they're awkward to use beyond a few requests.
 
 The easiest way to use them is in a bash `for` loop or with something like `xargs`.  This is slow and expensive as they open up a new HTTP connection on every request.  
 
@@ -135,7 +135,7 @@ kcat -C -e -q -b broker.example.com:9092 -t my-topic |\
   jq -r '.identifier' |\
   # use awk to turn that identifier into an URL
   awk '{ printf "https://api.example.com/item/%s\n", $1}' |\
-  # have 5 workers make reqeusts and use a static header with the auth token for every request
+  # have 5 workers make requests and use a static header with the auth token for every request
   ganda -s -W 5 -H "Authorization: Bearer <the_token>" |\
   # parse the `value` out of the response and emit it on stdout
   jq -r '.value'
