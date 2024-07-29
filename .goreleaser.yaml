@@ -45,3 +45,13 @@ changelog:
       - "^docs:"
       - "^test:"
 
+brews:
+  - name: ganda
+    homepage: "https://github.com/tednaleid/ganda"
+    description: "fast cmd-line app that quickly request millions of urls and save/echo the results"
+    repository:
+      owner: tednaleid
+      name: homebrew-ganda
+    commit_author:
+      name: tednaleid
+      email: contact@naleid.com
