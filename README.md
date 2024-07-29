@@ -2,29 +2,59 @@
 
 Ganda lets you make HTTP/HTTPS requests to hundreds to millions of URLs in just a few minutes.
 
-It's designed with the unix philosophy of ["do one thing well"](https://en.wikipedia.org/wiki/Unix_philosophy#Do_One_Thing_and_Do_It_Well) and wants to be used in a chain of command line pipes to make its requests in parallel. 
+It's designed with the Unix philosophy of ["do one thing well"](https://en.wikipedia.org/wiki/Unix_philosophy#Do_One_Thing_and_Do_It_Well) and wants to be used in a chain of command line pipes to make its requests in parallel. 
 
 By default, it will echo all response bodies to standard out but can optionally save the results of each request in a directory for later analysis.
 
+### Documentation Links
+
+* [Installation](#installation)
+* [A Tour of `ganda`](docs/GANDA_TOUR.ipynb)
+
+# Quick Examples
+
 Given a file with a list of IDs in it, you could do something like:
 
-    cat id_list.txt | awk '{printf "https://api.example.com/resource/%s?apikey=foo\n", $1}' | ganda
+```
+cat id_list.txt | awk '{printf "https://api.example.com/resource/%s?apikey=foo\n", $1}' | ganda
+```
     
-and that will pipe a stream of urls into `ganda` in the format `https://api.example.com/resource/<ID>?apikey=foo`.
+and that will pipe a stream of URLs into `ganda` in the format `https://api.example.com/resource/<ID>?apikey=foo`.
 
-Alternatively, if you have a file full of urls (one per line), you can just tell `ganda` to run that:
+Alternatively, if you have a file full of URLs (one per line), you can just tell `ganda` to run that:
 
-    ganda my_file_of_urls.txt
+```
+ganda my_file_of_urls.txt
+```
 
 If you give `ganda` a `-o <directory name>` parameter, it will save the body of each in a separate file inside `<directory name>`.  If you want a single file, just pipe stdout the normal way `... | ganda > result.txt`.
 
-For many more examples, see ["Using HTTP APIs on the Command Line - Part 3 - ganda"](http://www.naleid.com/2018/04/04/using-http-apis-on-the-command-line-3-ganda.html).
+For many more examples, take a look at the [Tour of `ganda`](docs/GANDA_TOUR.ipynb).
 
-# Installing
+# Why use `ganda` over `curl` (or `wget`, `httpie`, `postman-cli`, ...)?
+
+All existing CLI tools for making HTTP requests are oriented around making a single request at a time.  They're great
+at starting a pipe of commands (ex: `curl <url> | jq .`) but they're awkward to use beyond a few reqeusts.
+
+The easiest way to use them is in a bash `for` loop or with something like `xargs`.  This is slow and expensive as they open up a new HTTP connection on every request.  
+
+`ganda` makes many requests in parallel and can maintain context between the request and response.  It's designed to
+be used in a pipeline of commands and can be used to make hundreds of thousands of requests in just a few minutes. 
+
+`ganda` will reuse HTTP connections and can specify how many "worker" threads should be used to tightly control parallelism. 
+
+The closest CLIs I've found to `ganda` are load-testing tools like `vegeta`.  They're able to make many requests in
+parallel, but they're not designed to only call each URL once, don't maintain context between the request and response,
+and don't have the same flexibility in how the response is handled.
+
+`ganda` isn't for load testing, it's for making lots of requests in parallel and processing the results in a pipeline.
+
+
+# Installation
 
 You currently have 3 options:
 
-1. on MacOS you can install with [homebrew](https://brew.sh/)
+1. on MacOS you can install using [homebrew](https://brew.sh/)
 ```
 brew tap tednaleid/homebrew-ganda
 brew install ganda
@@ -38,77 +68,98 @@ brew install ganda
 go install github.com/tednaleid/ganda@latest
 ```
 
+or, if you have this repo downloaded locally:
+
+```
+make install
+```
+
 to install in your `$GOPATH/bin` (which you want in your `$PATH`)
 
 # Usage
 
-    ganda help
-    NAME:
-       ganda
+```
+ganda help
 
-    USAGE:
-       ganda [options] [file of urls/requests]  OR  <urls/requests on stdout> | ganda [options]
+NAME:
+ganda - make http requests in parallel
 
-    VERSION:
-       0.1.10
+USAGE:
+<urls/requests on stdout> | ganda [options]
 
-    DESCRIPTION:
-       Pipe urls to ganda over stdout or give it a file with one url per line for it to make http requests to each url in parallel.
+VERSION:
+1.0.0
 
-    AUTHOR:
-       Ted Naleid <contact@naleid.com>
+DESCRIPTION:
+Pipe urls to ganda over stdout for it to make http requests to each url in parallel.
 
-    COMMANDS:
-         help, h  Shows a list of commands or help for one command
+AUTHOR:
+Ted Naleid <contact@naleid.com>
 
-    GLOBAL OPTIONS:
-       --output value, -o value         the output base directory to save downloaded files, if omitted will stream response bodies to stdout
-       --request value, -X value        HTTP request method to use (default: "GET")
-       --header value, -H value         headers to send with every request, can be used multiple times (gzip and keep-alive are already there)
-       --data-template value, -d value  template string (or literal string) for the body, can use %s placeholders that will be replaced by fields 1..N from the input (all fields on a line after the url), '%%' can be used to insert a single percent symbol
-       --workers value, -W value        number of concurrent workers that will be making requests, increase this for more requests in parallel (default: 1)
-       --response-workers value         number of concurrent workers that will be processing responses, if not specified will be same as --workers (default: 0)
-       --subdir-length value, -S value  length of hashed subdirectory name to put saved files when using -o; use 2 for > 5k urls, 4 for > 5M urls (default: 0)
-       --connect-timeout value          number of seconds to wait for a connection to be established before timeout (default: 10)
-       --throttle value, -t value       max number of requests to process per second, default is unlimited (default: -1)
-       --insecure, -k                   if flag is present, skip verification of https certificates
-       --silent, -s                     if flag is present, omit showing response code for each url only output response bodies
-       --no-color                       if flag is present, don't add color to success/warn messages
-       --json-envelope                  EXPERIMENTAL: emit result with JSON envelope with url, status, length, and body fields, assumes result is valid json
-       --hash-body                      EXPERIMENTAL: instead of emitting full body in JSON, emit the SHA256 of the bytes of the body, useful for checksums, only has meaning with --json-envelope flag
-       --discard-body                   EXPERIMENTAL: instead of emitting full body, just discard it
-       --retry value                    max number of retries on transient errors (5XX status codes/timeouts) to attempt (default: 0)
-       --help, -h                       show help
-       --version, -v                    print the version
-       
-# Example
+COMMANDS:
+echoserver  Starts an echo server, --port <port> to override the default port of 8080
+help, h     Shows a list of commands or help for one command
 
-This command takes the first 1000 words from the macOS dictionary file, then turns each of them into a [Wikipedia API](https://www.mediawiki.org/wiki/API:Main_page) url.
+GLOBAL OPTIONS:
+--base-retry-millis value                              the base number of milliseconds to wait before retrying a request, exponential backoff is used for retries (default: 1000)
+--response-body value, -B value                        transforms the body of the response. Values: 'raw' (unchanged), 'base64', 'discard' (don't emit body), 'escaped' (JSON escaped string), 'sha256' (default: raw)
+--connect-timeout-millis value                         number of milliseconds to wait for a connection to be established before timeout (default: 10000)
+--header value, -H value [ --header value, -H value ]  headers to send with every request, can be used multiple times (gzip and keep-alive are already there)
+--insecure, -k                                         if flag is present, skip verification of https certificates (default: false)
+--json-envelope, -J                                    emit result with JSON envelope with url, status, length, and body fields, assumes result is valid json (default: false)
+--color                                                if flag is present, add color to success/warn messages (default: false)
+--output value, -o value                               if flag is present, save response bodies to files in the specified directory
+--request value, -X value                              HTTP request method to use (default: "GET")
+--response-workers value                               number of concurrent workers that will be processing responses, if not specified will be same as --workers (default: 0)
+--retry value                                          max number of retries on transient errors (5XX status codes/timeouts) to attempt (default: 0)
+--silent, -s                                           if flag is present, omit showing response code for each url only output response bodies (default: false)
+--subdir-length value, -S value                        length of hashed subdirectory name to put saved files when using -o; use 2 for > 5k urls, 4 for > 5M urls (default: 0)
+--throttle value, -t value                             max number of requests to process per second, default is unlimited (default: -1)
+--workers value, -W value                              number of concurrent workers that will be making requests, increase this for more requests in parallel (default: 1)
+--help, -h                                             show help (default: false)
+--version, -v                                          print the version (default: false)
+```
 
-Those urls are then piped into `ganda` and saved in a directory called `out` in the current directory.
+# Sample Advanced Use Cases
 
+I've used `ganda` to quickly solve problems that would have otherwise required writing a custom program.  
 
-    head -1000 /usr/share/dict/words |\
-    awk '{printf "https://en.wikipedia.org/w/api.php?action=query&titles=%s&prop=revisions&rvprop=content&format=json\n", $1}' |\
-    ganda -o out --subdir-length 2
-    
-Output (shows the HTTP status code of 200 OK for each along with the resulting output file that each was saved at):
+#### Consuming Events From Kafka and Calling an API
 
-    Response:  200 https://en.wikipedia.org/w/api.php?action=query&titles=aam&prop=revisions&rvprop=content&format=json -> out/95/https-en-wikipedia-org-w-api-php-action-query-titles-aam-prop-revisions-rvprop-content-format-json
-    Response:  200 https://en.wikipedia.org/w/api.php?action=query&titles=A&prop=revisions&rvprop=content&format=json -> out/71/https-en-wikipedia-org-w-api-php-action-query-titles-A-prop-revisions-rvprop-content-format-json
-    Response:  200 https://en.wikipedia.org/w/api.php?action=query&titles=aal&prop=revisions&rvprop=content&format=json -> out/99/https-en-wikipedia-org-w-api-php-action-query-titles-aal-prop-revisions-rvprop-content-format-json
-    Response:  200 https://en.wikipedia.org/w/api.php?action=query&titles=a&prop=revisions&rvprop=content&format=json -> out/69/https-en-wikipedia-org-w-api-php-action-query-titles-a-prop-revisions-rvprop-content-format-json
-    Response:  200 https://en.wikipedia.org/w/api.php?action=query&titles=aardwolf&prop=revisions&rvprop=content&format=json -> out/31/https-en-wikipedia-org-w-api-php-action-query-titles-aardwolf-prop-revisions-rvprop-content-format-json
-    Response:  200 https://en.wikipedia.org/w/api.php?action=query&titles=aalii&prop=revisions&rvprop=content&format=json -> out/91/https-en-wikipedia-org-w-api-php-action-query-titles-aalii-prop-revisions-rvprop-content-format-json
-    Response:  200 https://en.wikipedia.org/w/api.php?action=query&titles=aa&prop=revisions&rvprop=content&format=json -> out/ae/https-en-wikipedia-org-w-api-php-action-query-titles-aa-prop-revisions-rvprop-content-format-json
-    Response:  200 https://en.wikipedia.org/w/api.php?action=query&titles=Aani&prop=revisions&rvprop=content&format=json -> out/7f/https-en-wikipedia-org-w-api-php-action-query-titles-Aani-prop-revisions-rvprop-content-format-json
-    Response:  200 https://en.wikipedia.org/w/api.php?action=query&titles=Aaron&prop=revisions&rvprop=content&format=json -> out/db/https-en-wikipedia-org-w-api-php-action-query-titles-Aaron-prop-revisions-rvprop-content-format-json
-    Response:  200 https://en.wikipedia.org/w/api.php?action=query&titles=aardvark&prop=revisions&rvprop=content&format=json -> out/c4/https-en-wikipedia-org-w-api-php-action-query-titles-aardvark-prop-revisions-rvprop-content-format-json
-    ... 990 more lines
-    
-As `ganda` is designed to make many thousands of requests, you can use the `--subdir-length` to avoid making your filesystem unhappy with 1M files in a single directory.  That switch will hash each url and place the response in a subdirectory (similar to how git stores its objects).
+Using `kcat` (https://github.com/edenhill/kcat) (or another Kafka CLI that emits events from Kafka topics), we can consume all the events on a Kafka topic, then use `jq` to pull an identifier out of an event and make an API call for every identifier:
 
-example run:
+```
+# get all events on the `my-topic` topic
+kcat -C -e -q -b broker.example.com:9092 -t my-topic |\
+  # parse the identifier out of the JSON event
+  jq -r '.identifier' |\
+  # use awk to turn that identifier into an URL
+  awk '{ printf "https://api.example.com/item/%s\n", $1}' |\
+  # have 5 workers make reqeusts and use a static header with the auth token for every request
+  ganda -s -W 5 -H "Authorization: Bearer <the_token>" |\
+  # parse the `value` out of the response and emit it on stdout
+  jq -r '.value'
+```
 
-![ganda example run against wikipedia API](https://cdn.rawgit.com/tednaleid/ganda/gh-pages/images/ganda-example.gif)
+#### Ask for all pages/buckets from an API
 
+Here, we ask for the first 100 pages from an API.  Each returns a JSON list of `status` fields.  Pull those `status` fields out and do a unique count on the distribution.
+
+```
+# emit a sequence of the numbers from 1 to 100
+seq 100 |\
+  # use awk to create an url asking for each of the buckets
+  awk '{printf "https://example.com/items?type=BUCKET&value=%s\n", $1}' |\
+  # use a single ganda worker to ask for each page in sequence
+  ganda -s -W 1 -H "Authorization: Bearer <the_token>" |\
+  # use jq to parse the resulting json and grab the status
+  jq -r '.items[].status' | 
+  sort | 
+  # get a unique count of how many times each status appears
+  uniq -c
+
+  41128 DELETED
+   6491 INITIATED
+  34222 PROCESSED
+   5032 ERRORED
+```

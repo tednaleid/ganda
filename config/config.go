@@ -7,40 +7,38 @@ import (
 )
 
 type Config struct {
-	Silent                bool
-	Insecure              bool
-	NoColor               bool
-	JsonEnvelope          bool
-	HashBody              bool
-	DiscardBody           bool
-	BaseDirectory         string
-	DataTemplate          string
-	RequestWorkers        int
-	ResponseWorkers       int
-	SubdirLength          int
-	RequestMethod         string
-	ConnectTimeoutSeconds int
-	ThrottlePerSecond     int
-	Retries               int
-	RequestHeaders        []RequestHeader
-	RequestFilename       string
+	BaseDirectory        string
+	BaseRetryDelayMillis int64
+	Color                bool
+	ConnectTimeoutMillis int64
+	Insecure             bool
+	JsonEnvelope         bool
+	RequestFilename      string
+	RequestHeaders       []RequestHeader
+	RequestMethod        string
+	RequestWorkers       int
+	ResponseWorkers      int
+	ResponseBody         ResponseBodyType
+	Retries              int64
+	Silent               bool
+	SubdirLength         int64
+	ThrottlePerSecond    int64
 }
 
 func New() *Config {
 	return &Config{
-		RequestMethod:         "GET",
-		Insecure:              false,
-		Silent:                false,
-		NoColor:               false,
-		JsonEnvelope:          false,
-		HashBody:              false,
-		DiscardBody:           false,
-		DataTemplate:          "",
-		RequestWorkers:        1,
-		SubdirLength:          0,
-		ConnectTimeoutSeconds: 10,
-		ThrottlePerSecond:     math.MaxInt32,
-		Retries:               0,
+		BaseRetryDelayMillis: 1_000,
+		Color:                false,
+		ConnectTimeoutMillis: 10_000,
+		Insecure:             false,
+		JsonEnvelope:         false,
+		RequestMethod:        "GET",
+		RequestWorkers:       1,
+		ResponseBody:         Raw,
+		Retries:              0,
+		Silent:               false,
+		SubdirLength:         0,
+		ThrottlePerSecond:    math.MaxInt32,
 	}
 }
 
@@ -74,3 +72,13 @@ func ConvertRequestHeaders(stringHeaders []string) ([]RequestHeader, error) {
 
 	return requestHeaders, nil
 }
+
+type ResponseBodyType string
+
+const (
+	Base64  ResponseBodyType = "base64"
+	Discard ResponseBodyType = "discard"
+	Escaped ResponseBodyType = "escaped" // escaped to a valid JSON string
+	Sha256  ResponseBodyType = "sha256"
+	Raw     ResponseBodyType = "raw"
+)

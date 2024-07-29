@@ -1,123 +1,310 @@
 package parser_test
 
 import (
-	"testing"
-	"strings"
-	"github.com/tednaleid/ganda/parser"
-	"math"
+	"fmt"
 	"github.com/stretchr/testify/assert"
-	"github.com/tednaleid/ganda/execcontext"
-	"net/http"
-	"bufio"
-	"bytes"
+	"github.com/tednaleid/ganda/config"
+	"github.com/tednaleid/ganda/parser"
 	"io"
+	"strings"
+	"testing"
 )
 
-type parseExpectation struct {
-	input  string
-	dataTemplate string
-	url string
-	body string
-}
+func TestSendGetRequestUrlsHaveDefaultHeaders(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 2)
+	defer close(requestsWithContext)
 
-var parseStaticBodyList = []parseExpectation {
-	{"", "", "", ""},
-	{"http://example.com", "", "http://example.com", ""},
-	{"http://example.com 123 456", "", "http://example.com", "123 456"},
-	{"http://example.com {\"foo\": 123}", "", "http://example.com", "{\"foo\": 123}"},
-	{"http://example.com", "%s", "http://example.com", "%s"},
-	{"http://example.com 123 456", "%s %s", "http://example.com", "123 456"},
-	{"http://example.com 123", "%s %%s", "http://example.com", "123 %s"},
-}
+	inputLines := `
+        https://example.com/bar
+        https://example.com/qux
+    `
 
-func TestParseInputToUrlAndBody(t *testing.T) {
-	var url string
-	var bodyReader io.Reader
+	var in = trimmedInputReader(inputLines)
 
-	for _, expectation := range parseStaticBodyList {
-		if (expectation.dataTemplate == "" ) {
-			url, bodyReader = parser.ParseUrlAndOptionalBody(expectation.input)
-		} else {
-			url, bodyReader = parser.ParseTemplatedInput(expectation.input, expectation.dataTemplate)
-		}
+	err := parser.SendRequests(requestsWithContext, in, "GET", []config.RequestHeader{})
 
-		assert.Equal(t, expectation.url, url)
+	assert.Nil(t, err, "expected no error")
 
-		if (expectation.body == "") {
-			assert.Nil(t, bodyReader)
-		} else {
-			assert.Equal(t, expectation.body, readerToString(bodyReader))
-		}
-	}
-}
-
-func TestSendGetRequestsJustUrls(t *testing.T) {
-	t.Parallel()
-
-	requestsChannel := make(chan *http.Request)
-	firstUrl := "https://example.com/bar"
-	secondUrl := "https://example.com/qux"
-
-	context := &execcontext.Context{
-		ThrottlePerSecond: math.MaxInt32,
-		RequestScanner:    inputScanner([]string{firstUrl, secondUrl}),
-		RequestMethod:     "GET",
-	}
-
-	go parser.SendRequests(context, requestsChannel)
-
-	request := <-requestsChannel
-
-	assert.Equal(t, firstUrl, request.URL.String(), "expected url")
-	assert.Equal(t, "GET", request.Method, "expected method")
-	assert.Equal(t, request.Header["Connection"][0], "keep-alive", "Connection header")
-
-	secondRequest := <-requestsChannel
-
-	assert.Equal(t, secondUrl, secondRequest.URL.String(), "expected url")
-
-	close(requestsChannel)
-}
-
-func TestSendGetRequestsWithBody(t *testing.T) {
-	t.Parallel()
-
-	requestsChannel := make(chan *http.Request)
-	firstLine := "https://example.com/bar 123"
-	secondLine := "https://example.com/qux 456"
-
-	context := &execcontext.Context{
-		ThrottlePerSecond: math.MaxInt32,
-		RequestScanner:    inputScanner([]string{firstLine, secondLine}),
-		RequestMethod:     "POST",
-		DataTemplate:      "value: %s",
-	}
-
-	go parser.SendRequests(context, requestsChannel)
-
-	request := <-requestsChannel
+	requestWithContext := <-requestsWithContext
+	request := requestWithContext.Request
+	requestContext := requestWithContext.RequestContext
 
 	assert.Equal(t, "https://example.com/bar", request.URL.String(), "expected url")
-	assert.Equal(t, "POST", request.Method, "expected method")
+	assert.Equal(t, "GET", request.Method, "expected method")
 	assert.Equal(t, request.Header["Connection"][0], "keep-alive", "Connection header")
-	assert.Equal(t, "value: 123", readerToString(request.Body))
+	assert.Equal(t, []string(nil), requestContext, "expected nil string context")
 
-	secondRequest := <-requestsChannel
+	secondRequestWithContext := <-requestsWithContext
+	secondRequest := secondRequestWithContext.Request
+	secondRequestContext := secondRequestWithContext.RequestContext
 
 	assert.Equal(t, "https://example.com/qux", secondRequest.URL.String(), "expected url")
-	assert.Equal(t, "value: 456", readerToString(secondRequest.Body))
-
-	close(requestsChannel)
+	assert.Equal(t, []string(nil), secondRequestContext, "expected nil string context")
 }
 
-func readerToString(reader io.Reader) string {
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(reader)
-	return buf.String()
+func TestSendGetRequestUrlsAddGivenHeaders(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 1)
+	defer close(requestsWithContext)
+
+	inputLines := `https://example.com/bar`
+	var in = trimmedInputReader(inputLines)
+
+	requestHeaders := []config.RequestHeader{{Key: "X-Test", Value: "foo"}, {Key: "X-Test2", Value: "bar"}}
+
+	err := parser.SendRequests(requestsWithContext, in, "GET", requestHeaders)
+
+	assert.Nil(t, err, "expected no error")
+
+	requestWithContext := <-requestsWithContext
+	request := requestWithContext.Request
+	requestContext := requestWithContext.RequestContext
+
+	assert.Equal(t, "https://example.com/bar", request.URL.String(), "expected url")
+	assert.Equal(t, "GET", request.Method, "expected method")
+	assert.Equal(t, request.Header["Connection"][0], "keep-alive", "Connection header")
+	assert.Equal(t, request.Header["X-Test"][0], "foo")
+	assert.Equal(t, request.Header["X-Test2"][0], "bar")
+	assert.Equal(t, []string(nil), requestContext, "expected nil string context")
 }
 
+func TestSendRequestsHasRaggedRequestContext(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 3)
+	defer close(requestsWithContext)
 
-func inputScanner(urls []string) *bufio.Scanner {
-	stringUrls := strings.Join(urls, "\n")
-	return bufio.NewScanner(strings.NewReader(stringUrls))
+	// we allow ragged numbers of fields in the TSV input
+	// we also follow the quoting rules in RFC 4180, so:
+	//    a double quote in a quoted field is escaped with another double quote
+	//    whitespace inside a quoted field is preserved
+	inputLines := `
+        https://ex.com/bar	foo	"quoted content"	
+		https://ex.com/qux	quux	"  ""quoted with whitespace""  "	456
+		https://ex.com/123	"baz"
+    `
+
+	var in = trimmedInputReader(inputLines)
+
+	parser.SendRequests(requestsWithContext, in, "GET", []config.RequestHeader{})
+
+	expectedResults := []struct {
+		url     string
+		context []string
+	}{
+		{"https://ex.com/bar", []string{"foo", "quoted content"}},
+		{"https://ex.com/qux", []string{"quux", "  \"quoted with whitespace\"  ", "456"}},
+		{"https://ex.com/123", []string{"baz"}},
+	}
+
+	for _, expectedResult := range expectedResults {
+		requestWithContext := <-requestsWithContext
+		request := requestWithContext.Request
+		requestContext := requestWithContext.RequestContext
+
+		assert.Equal(t, expectedResult.url, request.URL.String(), "expected url")
+		assert.Equal(t, expectedResult.context, requestContext, "expected context")
+	}
+}
+
+func TestSendRequestsHasMalformedTSV(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 1)
+	defer close(requestsWithContext)
+
+	inputLines := `https://ex.com/bar	foo	"quoted content	missing terminating quote`
+
+	var in = trimmedInputReader(inputLines)
+
+	err := parser.SendRequests(requestsWithContext, in, "GET", []config.RequestHeader{})
+
+	assert.NotNil(t, err, "expected error")
+	assert.Equal(t, "parse error on line 1, column 65: extraneous or missing \" in quoted-field", err.Error())
+}
+
+func TestSendJsonLinesRequests(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 3)
+	defer close(requestsWithContext)
+
+	inputLines := `
+        { "url": "https://ex.com/bar", "context": ["foo", "quoted content"] }
+		{ "url": "https://ex.com/qux", "method": "POST", "context": { "quux": "  \"quoted with whitespace\"  ", "corge": 456 } }
+		{ "url": "https://ex.com/123", "method": "DELETE", "context": "baz" }
+    `
+
+	var in = trimmedInputReader(inputLines)
+
+	err := parser.SendRequests(requestsWithContext, in, "GET", []config.RequestHeader{})
+	assert.Nil(t, err, "expected no error")
+
+	expectedResults := []struct {
+		url     string
+		context interface{}
+		method  string
+	}{
+		{"https://ex.com/bar", []interface{}{"foo", "quoted content"}, "GET"},
+		{"https://ex.com/qux", map[string]interface{}{"quux": "  \"quoted with whitespace\"  ", "corge": float64(456)}, "POST"},
+		{"https://ex.com/123", "baz", "DELETE"},
+	}
+
+	for _, expectedResult := range expectedResults {
+		requestWithContext := <-requestsWithContext
+		request := requestWithContext.Request
+		requestContext := requestWithContext.RequestContext
+
+		assert.Equal(t, expectedResult.url, request.URL.String(), "expected url")
+		assert.Equal(t, expectedResult.context, requestContext, "expected context")
+		assert.Equal(t, expectedResult.method, request.Method, "expected method")
+	}
+}
+
+func TestSendJsonLinesRequestsMissingUrl(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 1)
+	defer close(requestsWithContext)
+
+	// missing `url` field
+	inputLines := ` { "noturl": "https://ex.com/bar", "context": ["foo", "quoted content"] }`
+
+	var in = trimmedInputReader(inputLines)
+
+	err := parser.SendRequests(requestsWithContext, in, "GET", []config.RequestHeader{})
+
+	assert.NotNil(t, err, "expected error")
+	assert.Equal(t, "missing url property: { \"noturl\": \"https://ex.com/bar\", \"context\": [\"foo\", \"quoted content\"] }", err.Error())
+}
+
+func TestSendJsonLinesRequestsMalformedJson(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 1)
+	defer close(requestsWithContext)
+
+	// missing trailing `}`
+	inputLines := ` { "url": "https://ex.com/bar", "context": ["foo", "quoted content"]`
+
+	var in = trimmedInputReader(inputLines)
+
+	err := parser.SendRequests(requestsWithContext, in, "GET", []config.RequestHeader{})
+
+	assert.NotNil(t, err, "expected error")
+	assert.Equal(t, "unexpected end of JSON input: { \"url\": \"https://ex.com/bar\", \"context\": [\"foo\", \"quoted content\"]", err.Error())
+}
+
+func TestSendJsonLinesAddGivenHeaders(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 1)
+	defer close(requestsWithContext)
+
+	inputLines := `{ "url": "https://ex.com/123", "method": "DELETE", "headers": { "X-Bar": "corge" }, "context": "baz" }`
+
+	var in = trimmedInputReader(inputLines)
+
+	staticHeaders := []config.RequestHeader{{Key: "X-Static", Value: "foo"}}
+
+	err := parser.SendRequests(requestsWithContext, in, "GET", staticHeaders)
+
+	assert.Nil(t, err, "expected no error")
+
+	requestWithContext := <-requestsWithContext
+	request := requestWithContext.Request
+	requestContext := requestWithContext.RequestContext
+
+	assert.Equal(t, "https://ex.com/123", request.URL.String(), "expected url")
+	assert.Equal(t, "DELETE", request.Method, "expected method")
+	assert.Equal(t, request.Header["Connection"][0], "keep-alive", "Connection header")
+	assert.Equal(t, request.Header["X-Static"][0], "foo")
+	assert.Equal(t, request.Header["X-Bar"][0], "corge")
+	assert.Equal(t, "baz", requestContext, "expected context")
+}
+
+func TestSendJsonLinesGivenHeadersOverrideStaticHeaders(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 1)
+	defer close(requestsWithContext)
+
+	inputLines := `{ "url": "https://ex.com/123", "method": "DELETE", "headers": { "X-Bar": "corge" }, "context": "baz" }`
+
+	var in = trimmedInputReader(inputLines)
+
+	staticHeaders := []config.RequestHeader{{Key: "X-Bar", Value: "foo"}}
+
+	err := parser.SendRequests(requestsWithContext, in, "GET", staticHeaders)
+
+	assert.Nil(t, err, "expected no error")
+
+	requestWithContext := <-requestsWithContext
+	request := requestWithContext.Request
+	requestContext := requestWithContext.RequestContext
+
+	assert.Equal(t, "https://ex.com/123", request.URL.String(), "expected url")
+	assert.Equal(t, "DELETE", request.Method, "expected method")
+	assert.Equal(t, request.Header["Connection"][0], "keep-alive", "Connection header")
+	assert.Equal(t, request.Header["X-Bar"][0], "corge")
+	assert.Equal(t, "baz", requestContext, "expected context")
+}
+
+func TestSendJsonLinesStaticHeadersAreNotRequiredToAddHeaders(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 1)
+	defer close(requestsWithContext)
+
+	inputLines := `{ "url": "https://ex.com/123", "method": "DELETE", "headers": { "X-Bar": "corge" }, "context": "baz" }`
+
+	var in = trimmedInputReader(inputLines)
+
+	err := parser.SendRequests(requestsWithContext, in, "GET", nil)
+
+	assert.Nil(t, err, "expected no error")
+
+	requestWithContext := <-requestsWithContext
+	request := requestWithContext.Request
+	requestContext := requestWithContext.RequestContext
+
+	assert.Equal(t, "https://ex.com/123", request.URL.String(), "expected url")
+	assert.Equal(t, "DELETE", request.Method, "expected method")
+	assert.Equal(t, request.Header["Connection"][0], "keep-alive", "Connection header")
+	assert.Equal(t, request.Header["X-Bar"][0], "corge")
+	assert.Equal(t, "baz", requestContext, "expected context")
+}
+
+func TestSendJsonLinesPassesBody(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 3)
+	defer close(requestsWithContext)
+
+	// Define the three types of body inputs
+	bodyInputs := []struct {
+		bodyType string
+		body     string
+		expected string
+	}{
+		{"escaped", `"the \"body\""`, "the \"body\""},
+		{"base64", `"dGhlIGJvZHk="`, "the body"},
+		{"json", `{"key": "value"}`, `{"key": "value"}`},
+		{"", `{"key": "value"}`, `{"key": "value"}`},
+	}
+
+	for _, bodyInput := range bodyInputs {
+		inputLines := fmt.Sprintf(`{ "url": "https://ex.com/123", "body": %s, "bodyType": "%s" }`, bodyInput.body, bodyInput.bodyType)
+
+		var in = strings.NewReader(inputLines)
+
+		err := parser.SendRequests(requestsWithContext, in, "GET", nil)
+
+		assert.Nil(t, err, "expected no error")
+
+		requestWithContext := <-requestsWithContext
+		request := requestWithContext.Request
+
+		assert.Equal(t, "https://ex.com/123", request.URL.String(), "expected url")
+		assert.NotNil(t, request.Body, "expected body")
+
+		bodyBytes, _ := io.ReadAll(request.Body)
+		bodyString := string(bodyBytes)
+
+		assert.Equal(t, bodyInput.expected, bodyString, "expected body")
+	}
+}
+
+func trimmedInputReader(s string) io.Reader {
+	lines := strings.Split(s, "\n")
+	var trimmedLines []string
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if len(trimmedLine) > 0 {
+			trimmedLines = append(trimmedLines, trimmedLine)
+		}
+	}
+	return strings.NewReader(strings.Join(trimmedLines, "\n"))
 }
