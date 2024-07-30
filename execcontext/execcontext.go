@@ -60,7 +60,8 @@ func New(conf *config.Config, in io.Reader, stderr io.Writer, stdout io.Writer) 
 		context.RequestWorkers = 1
 	}
 
-	context.ResponseWorkers = context.RequestWorkers
+	// updating to a single response worker for now, need to fix a bug where they aren't sharing stdout properly
+	context.ResponseWorkers = 1
 
 	if len(conf.RequestFilename) > 0 {
 		// replace stdin with the file
