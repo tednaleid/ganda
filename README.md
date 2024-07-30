@@ -152,8 +152,8 @@ seq 100 |\
   # use a single ganda worker to ask for each page in sequence
   ganda -s -W 1 -H "X-Api-Key: my-key" |\
   # use jq to parse the resulting json and grab the status
-  jq -r '.items[].status' | 
-  sort | 
+  jq -r '.items[].status' |\ 
+  sort |\
   # get a unique count of how many times each status appears
   uniq -c
 
