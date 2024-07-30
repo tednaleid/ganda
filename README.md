@@ -88,36 +88,35 @@ USAGE:
 <urls/requests on stdout> | ganda [options]
 
 VERSION:
-   1.0.1 faee8ce3b09ad2d65e438e3187cbd7568c5a6da1 2024-07-29T21:57:14Z
+   1.0.2
 
 DESCRIPTION:
-Pipe urls to ganda over stdout for it to make http requests to each url in parallel.
+   Pipe urls to ganda over stdout to make http requests to each url in parallel.
 
 AUTHOR:
-Ted Naleid <contact@naleid.com>
+   Ted Naleid <contact@naleid.com>
 
 COMMANDS:
-echoserver  Starts an echo server, --port <port> to override the default port of 8080
-help, h     Shows a list of commands or help for one command
+   echoserver  Starts an echo server, --port <port> to override the default port of 8080
+   help, h     Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
---base-retry-millis value                              the base number of milliseconds to wait before retrying a request, exponential backoff is used for retries (default: 1000)
---response-body value, -B value                        transforms the body of the response. Values: 'raw' (unchanged), 'base64', 'discard' (don't emit body), 'escaped' (JSON escaped string), 'sha256' (default: raw)
---connect-timeout-millis value                         number of milliseconds to wait for a connection to be established before timeout (default: 10000)
---header value, -H value [ --header value, -H value ]  headers to send with every request, can be used multiple times (gzip and keep-alive are already there)
---insecure, -k                                         if flag is present, skip verification of https certificates (default: false)
---json-envelope, -J                                    emit result with JSON envelope with url, status, length, and body fields, assumes result is valid json (default: false)
---color                                                if flag is present, add color to success/warn messages (default: false)
---output value, -o value                               if flag is present, save response bodies to files in the specified directory
---request value, -X value                              HTTP request method to use (default: "GET")
---response-workers value                               number of concurrent workers that will be processing responses, if not specified will be same as --workers (default: 0)
---retry value                                          max number of retries on transient errors (5XX status codes/timeouts) to attempt (default: 0)
---silent, -s                                           if flag is present, omit showing response code for each url only output response bodies (default: false)
---subdir-length value, -S value                        length of hashed subdirectory name to put saved files when using -o; use 2 for > 5k urls, 4 for > 5M urls (default: 0)
---throttle value, -t value                             max number of requests to process per second, default is unlimited (default: -1)
---workers value, -W value                              number of concurrent workers that will be making requests, increase this for more requests in parallel (default: 1)
---help, -h                                             show help (default: false)
---version, -v                                          print the version (default: false)
+   --base-retry-millis value                              the base number of milliseconds to wait before retrying a request, exponential backoff is used for retries (default: 1000)
+   --response-body value, -B value                        transforms the body of the response. Values: 'raw' (unchanged), 'base64', 'discard' (don't emit body), 'escaped' (JSON escaped string), 'sha256' (default: raw)
+   --connect-timeout-millis value                         number of milliseconds to wait for a connection to be established before timeout (default: 10000)
+   --header value, -H value [ --header value, -H value ]  headers to send with every request, can be used multiple times (gzip and keep-alive are already there)
+   --insecure, -k                                         if flag is present, skip verification of https certificates (default: false)
+   --json-envelope, -J                                    emit result with JSON envelope with url, status, length, and body fields, assumes result is valid json (default: false)
+   --color                                                if flag is present, add color to success/warn messages (default: false)
+   --output-directory value                               if flag is present, save response bodies to files in the specified directory
+   --request value, -X value                              HTTP request method to use (default: "GET")
+   --retry value                                          max number of retries on transient errors (5XX status codes/timeouts) to attempt (default: 0)
+   --silent, -s                                           if flag is present, omit showing response code for each url only output response bodies (default: false)
+   --subdir-length value                                  length of hashed subdirectory name to put saved files when using --output-directory; use 2 for > 5k urls, 4 for > 5M urls (default: 0)
+   --throttle-per-second value                            max number of requests to process per second, default is unlimited (default: -1)
+   --workers value, -W value                              number of concurrent workers that will be making requests, increase this for more requests in parallel (default: 1)
+   --help, -h                                             show help (default: false)
+   --version, -v                                          print the version (default: false)
 ```
 
 # Sample Advanced Use Cases
@@ -135,8 +134,8 @@ kcat -C -e -q -b broker.example.com:9092 -t my-topic |\
   jq -r '.identifier' |\
   # use awk to turn that identifier into an URL
   awk '{ printf "https://api.example.com/item/%s\n", $1}' |\
-  # have 5 workers make requests and use a static header with the auth token for every request
-  ganda -s -W 5 -H "Authorization: Bearer <the_token>" |\
+  # have 5 workers make requests and use a static header with and API key for every request
+  ganda -s -W 5 -H "X-Api-Key: my-key" |\
   # parse the `value` out of the response and emit it on stdout
   jq -r '.value'
 ```
@@ -151,7 +150,7 @@ seq 100 |\
   # use awk to create an url asking for each of the buckets
   awk '{printf "https://example.com/items?type=BUCKET&value=%s\n", $1}' |\
   # use a single ganda worker to ask for each page in sequence
-  ganda -s -W 1 -H "Authorization: Bearer <the_token>" |\
+  ganda -s -W 1 -H "X-Api-Key: my-key" |\
   # use jq to parse the resulting json and grab the status
   jq -r '.items[].status' | 
   sort | 

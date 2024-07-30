@@ -28,12 +28,6 @@ func TestWorkers(t *testing.T) {
 	results, _ := ParseGandaArgs([]string{"ganda", "-W", "10"})
 	assert.NotNil(t, results)
 	assert.Equal(t, 10, results.GetContext().RequestWorkers)
-	assert.Equal(t, 10, results.GetContext().ResponseWorkers)
-
-	separateResults, _ := ParseGandaArgs([]string{"ganda", "-W", "10", "--response-workers", "5"})
-	assert.NotNil(t, separateResults)
-	assert.Equal(t, 10, separateResults.GetContext().RequestWorkers)
-	assert.Equal(t, 5, separateResults.GetContext().ResponseWorkers)
 }
 
 func TestRetries(t *testing.T) {

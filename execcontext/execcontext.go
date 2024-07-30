@@ -47,7 +47,6 @@ func New(conf *config.Config, in io.Reader, stderr io.Writer, stdout io.Writer) 
 		RequestWorkers:         conf.RequestWorkers,
 		RequestHeaders:         conf.RequestHeaders,
 		ResponseBody:           conf.ResponseBody,
-		ResponseWorkers:        conf.ResponseWorkers,
 		Retries:                conf.Retries,
 		SubdirLength:           conf.SubdirLength,
 		ThrottlePerSecond:      math.MaxInt32,
@@ -61,9 +60,7 @@ func New(conf *config.Config, in io.Reader, stderr io.Writer, stdout io.Writer) 
 		context.RequestWorkers = 1
 	}
 
-	if context.ResponseWorkers <= 0 {
-		context.ResponseWorkers = context.RequestWorkers
-	}
+	context.ResponseWorkers = context.RequestWorkers
 
 	if len(conf.RequestFilename) > 0 {
 		// replace stdin with the file

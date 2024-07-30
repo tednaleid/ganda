@@ -44,7 +44,7 @@ func SetupCommand(
 			"Ted Naleid <contact@naleid.com>",
 		},
 		UsageText:   "<urls/requests on stdout> | ganda [options]",
-		Description: "Pipe urls to ganda over stdout for it to make http requests to each url in parallel.",
+		Description: "Pipe urls to ganda over stdout to make http requests to each url in parallel.",
 		Version:     buildInfo.ToString(),
 		Reader:      in,
 		Writer:      stdout,
@@ -111,8 +111,7 @@ func SetupCommand(
 				Destination: &conf.Color,
 			},
 			&cli.StringFlag{
-				Name:        "output",
-				Aliases:     []string{"o"},
+				Name:        "output-directory",
 				Usage:       "if flag is present, save response bodies to files in the specified directory",
 				Destination: &conf.BaseDirectory,
 			},
@@ -122,11 +121,6 @@ func SetupCommand(
 				Value:       conf.RequestMethod,
 				Usage:       "HTTP request method to use",
 				Destination: &conf.RequestMethod,
-			},
-			&WorkerFlag{
-				Name:        "response-workers",
-				Usage:       "number of concurrent workers that will be processing responses, if not specified will be same as --workers",
-				Destination: &conf.ResponseWorkers,
 			},
 			&cli.IntFlag{
 				Name:        "retry",
@@ -142,14 +136,12 @@ func SetupCommand(
 			},
 			&cli.IntFlag{
 				Name:        "subdir-length",
-				Aliases:     []string{"S"},
-				Usage:       "length of hashed subdirectory name to put saved files when using -o; use 2 for > 5k urls, 4 for > 5M urls",
+				Usage:       "length of hashed subdirectory name to put saved files when using --output-directory; use 2 for > 5k urls, 4 for > 5M urls",
 				Value:       conf.SubdirLength,
 				Destination: &conf.SubdirLength,
 			},
 			&cli.IntFlag{
-				Name:        "throttle",
-				Aliases:     []string{"t"},
+				Name:        "throttle-per-second",
 				Usage:       "max number of requests to process per second, default is unlimited",
 				Value:       -1,
 				Destination: &conf.ThrottlePerSecond,
