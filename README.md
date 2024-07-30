@@ -19,7 +19,7 @@ Given a file with a list of IDs in it, you could do something like:
 cat id_list.txt | awk '{printf "https://api.example.com/resource/%s?key=foo\n", $1}' | ganda
 ```
     
-and that will pipe a stream of URLs into `ganda` in the format `https://api.example.com/resource/<ID>?apikey=foo`.
+and that will pipe a stream of URLs into `ganda` in the format `https://api.example.com/resource/<ID>?key=foo`.
 
 Alternatively, if you have a file full of URLs (one per line), you can just tell `ganda` to run that:
 
