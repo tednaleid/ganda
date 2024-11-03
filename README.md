@@ -1,47 +1,29 @@
-# What is `ganda`?
 
-Ganda lets you make HTTP/HTTPS requests to hundreds to millions of URLs in just a few minutes.
+# ganda - High-Performance HTTP Request CLI
 
+## Overview
+
+`ganda` lets you make HTTP/HTTPS requests to hundreds to millions of URLs in just a few minutes.
 It's designed with the Unix philosophy of ["do one thing well"](https://en.wikipedia.org/wiki/Unix_philosophy#Do_One_Thing_and_Do_It_Well) and wants to be used in a chain of command line pipes to make its requests in parallel. 
-
 By default, it will echo all response bodies to standard out but can optionally save the results of each request in a directory for later analysis.
 
-### Documentation Links
+### Key Features
 
-* [Installation](#installation)
-* [A Tour of `ganda`](docs/GANDA_TOUR.ipynb)
+* **Parallel Request Processing:** Handle thousands of URLs simultaneously with customizable worker counts.
+* **Flexible Output Options:** Output responses to stdout, save to a directory, or format as JSON for easy parsing.
+* **Integrate with CLI Tools:** Works well with tools like jq, awk, sort, and more for powerful data transformations.
 
-# Quick Examples
-
-Given a file with a list of IDs in it, you could do something like:
-
-```bash
-cat id_list.txt | awk '{printf "https://api.example.com/resource/%s?key=foo\n", $1}' | ganda
-```
-    
-and that will pipe a stream of URLs into `ganda` in the format `https://api.example.com/resource/<ID>?key=foo`.
-
-Alternatively, if you have a file full of URLs (one per line), you can just tell `ganda` to run that:
-
-```bash
-ganda my_file_of_urls.txt
-```
-
-If you give `ganda` a `-o <directory name>` parameter, it will save the body of each in a separate file inside `<directory name>`.  If you want a single file, just pipe stdout the normal way `... | ganda > result.txt`.
-
-For many more examples, take a look at the [Tour of `ganda`](docs/GANDA_TOUR.ipynb).
-
-# Why use `ganda` over `curl` (or `wget`, `httpie`, `postman-cli`, ...)?
+### Why use `ganda` over `curl` (or `wget`, `httpie`, `postman-cli`, ...)?
 
 All existing CLI tools for making HTTP requests are oriented around making a single request at a time.  They're great
 at starting a pipe of commands (ex: `curl <url> | jq .`) but they're awkward to use beyond a few requests.
 
-The easiest way to use them is in a bash `for` loop or with something like `xargs`.  This is slow and expensive as they open up a new HTTP connection on every request.  
+The easiest way to use them is in a bash `for` loop or with something like `xargs`.  This is slow and expensive as they open up a new HTTP connection on every request.
 
 `ganda` makes many requests in parallel and can maintain context between the request and response.  It's designed to
-be used in a pipeline of commands and can be used to make hundreds of thousands of requests in just a few minutes. 
+be used in a pipeline of commands and can be used to make hundreds of thousands of requests in just a few minutes.
 
-`ganda` will reuse HTTP connections and can specify how many "worker" threads should be used to tightly control parallelism. 
+`ganda` will reuse HTTP connections and can specify how many "worker" threads should be used to tightly control parallelism.
 
 The closest CLIs I've found to `ganda` are load-testing tools like `vegeta`.  They're able to make many requests in
 parallel, but they're not designed to only call each URL once, don't maintain context between the request and response,
@@ -49,20 +31,26 @@ and don't have the same flexibility in how the response is handled.
 
 `ganda` isn't for load testing, it's for making lots of requests in parallel and processing the results in a pipeline.
 
+## Documentation Links
+
+* [Installation](#installation)
+* [Usage Configuration Options](#usage--configuration-options)
+* [Quick Examples](#quick-examples)
+* [Advanced Use Cases](#sample-advanced-use-cases)
 
 # Installation
 
-You currently have 3 options:
+One currently has 3 options:
 
-1. on MacOS you can install using [homebrew](https://brew.sh/)
+1\. On MacOS you can install using [homebrew](https://brew.sh/)
 ```bash
 brew tap tednaleid/homebrew-ganda
 brew install ganda
 ```
 
-2. download the appropriate binary from the [releases page](https://github.com/tednaleid/ganda/releases) and put it in your path
+2\. Download the appropriate binary from the [releases page]((https://github.com/tednaleid/ganda/releases) and put it in your path
 
-3. Compile from source with golang:
+3\. Compile from source with golang:
 
 ```bash
 go install github.com/tednaleid/ganda@latest
@@ -76,7 +64,7 @@ make install
 
 to install in your `$GOPATH/bin` (which you want in your `$PATH`)
 
-# Usage
+# Usage & Configuration Options
 
 ```bash
 ganda help
@@ -119,11 +107,54 @@ GLOBAL OPTIONS:
    --version, -v                                          print the version (default: false)
 ```
 
-# Sample Advanced Use Cases
+# Quick Examples
 
-I've used `ganda` to quickly solve problems that would have otherwise required writing a custom program.  
+Here are a few quick examples to show how `ganda` can be used.
 
-#### Consuming Events From Kafka and Calling an API
+### Example 1: Basic Request from a List of IDs
+
+Given a file with a list of IDs in it, you could do something like:
+
+```bash
+cat id_list.txt | awk '{printf "https://api.example.com/resource/%s?key=foo\n", $1}' | ganda
+```
+and that will pipe a stream of URLs into `ganda` in the format `https://api.example.com/resource/<ID>?key=foo`.
+
+This command:
+* Reads IDs from `id_list.txt`. 
+* Uses `awk` to format each ID as a URL. 
+* Pipes the generated URLs into `ganda` for parallel requests.
+
+### Example 2: Requesting URLs from a File
+
+If you have a file containing URLs (one per line), you can pass it directly to `ganda`:
+
+```bash
+ganda my_file_of_urls.txt
+```
+This command sends each URL in `my_file_of_urls.txt` as a request in parallel. You can control the output location by specifying an output directory with `-o <directory>`.
+
+### Example 3: Save Responses to a Directory
+
+To save each response in a separate file within a specified directory:
+
+```bash
+cat urls.txt | ganda -o response_dir
+```
+
+To save all responses to a single file, you can use standard output redirection:
+
+```bash
+cat urls.txt | ganda > results.txt
+```
+
+For many more examples, take a look at the [Tour of `ganda`](docs/GANDA_TOUR.ipynb).
+
+## Sample Advanced Use Cases
+
+`ganda` enables powerful workflows that would otherwise require custom scripting. Here are a few advanced examples.
+
+### Example 1: Consuming Events from Kafka and Calling an API
 
 Using `kcat` (https://github.com/edenhill/kcat) (or another Kafka CLI that emits events from Kafka topics), we can consume all the events on a Kafka topic, then use `jq` to pull an identifier out of an event and make an API call for every identifier:
 
@@ -140,7 +171,7 @@ kcat -C -e -q -b broker.example.com:9092 -t my-topic |\
   jq -r '.value'
 ```
 
-#### Ask for all pages/buckets from an API
+### Example 2: Requesting Multiple Pages from an API
 
 Here, we ask for the first 100 pages from an API.  Each returns a JSON list of `status` fields.  Pull those `status` fields out and do a unique count on the distribution.
 
@@ -162,3 +193,9 @@ seq 100 |\
   34222 PROCESSED
    5032 ERRORED
 ```
+## Contribution Guidelines
+
+If you like to contribute, please follow these steps:
+1. Fork the repository and create a new branch.
+2. Make your changes and write tests if applicable.
+3. Submit a pull request with a clear description of your changes.
