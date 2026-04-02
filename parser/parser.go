@@ -162,6 +162,9 @@ func parseBody(bodyType string, body json.RawMessage) (io.ReadCloser, error) {
 		return io.NopCloser(strings.NewReader(str)), nil
 	case "base64":
 		unquoted, err := strconv.Unquote(string(body))
+		if err != nil {
+			return nil, err
+		}
 		data, err := base64.StdEncoding.DecodeString(unquoted)
 		if err != nil {
 			return nil, err

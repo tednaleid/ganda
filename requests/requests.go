@@ -100,6 +100,7 @@ func requestWithRetry(
 
 		if err == nil {
 			httpClient.Logger.LogResponse(response.StatusCode, message)
+			response.Body.Close()
 		} else {
 			httpClient.Logger.LogError(err, message)
 		}
@@ -108,7 +109,7 @@ func requestWithRetry(
 			return responseWithContext, fmt.Errorf("maximum number of retries (%d) reached for request", httpClient.MaxRetries)
 		}
 
-		time.Sleep(baseRetryDelay * time.Duration(2^attempts))
+		time.Sleep(baseRetryDelay * time.Duration(1<<uint(attempts)))
 	}
 
 }

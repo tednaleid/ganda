@@ -22,6 +22,12 @@ builds:
       - linux
       - windows
       - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
 
 archives:
   - format: tar.gz
@@ -52,6 +58,7 @@ brews:
     repository:
       owner: tednaleid
       name: homebrew-ganda
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     commit_author:
       name: tednaleid
       email: contact@naleid.com

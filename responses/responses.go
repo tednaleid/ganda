@@ -207,11 +207,11 @@ func determineEmitBodyResponseFn(responseBody config.ResponseBodyType) emitRespo
 	case config.Raw:
 		return emitRawBody
 	case config.Sha256:
-		return emitSha256BodyFn()
+		return emitSha256BodyFn() //nolint:bodyclose // body is closed inside the returned closure
 	case config.Discard:
 		return emitNothingBody
 	case config.Escaped:
-		return emitEscapedBodyFn()
+		return emitEscapedBodyFn() //nolint:bodyclose // body is closed inside the returned closure
 	case config.Base64:
 		return emitBase64Body
 	default:

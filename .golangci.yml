@@ -1,0 +1,53 @@
+version: "2"
+
+run:
+  timeout: 3m
+
+linters:
+  enable:
+    - bodyclose
+    - errcheck
+    - gocritic
+    - govet
+    - ineffassign
+    - misspell
+    - nilerr
+    - staticcheck
+    - unused
+
+  settings:
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+      disabled-checks:
+        - hugeParam
+        - commentFormatting
+        - commentedOutCode
+        - sprintfQuotedString
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (net.Conn).Close
+        - (io.Writer).Write
+        - os.MkdirAll
+    staticcheck:
+      checks:
+        - "all"
+        - "-ST1000"  # missing package comment
+        - "-ST1003"  # naming convention (Json vs JSON, Http vs HTTP)
+        - "-ST1005"  # error strings should not be capitalized
+        - "-ST1008"  # error should be returned as last arg (style)
+        - "-ST1020"  # comment on exported function
+        - "-ST1021"  # comment on exported type
+        - "-QF1008"  # could remove embedded field from selector
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
