@@ -34,8 +34,8 @@ func Echoserver(port int, delayMillis int, out io.Writer) (func() error, error) 
 	e.HidePort = true
 
 	e.Use(middleware.BodyDump(func(c echo.Context, reqBody, resBody []byte) {
-		logEntryJSON := requestToJSON(c, reqBody)
-		fmt.Fprintf(out, "%s\n", logEntryJSON)
+		// resBody is already the JSON from the handler, no need to marshal again
+		fmt.Fprintf(out, "%s\n", resBody)
 	}))
 
 	e.Use(middleware.Recover())
@@ -72,6 +72,7 @@ func Echoserver(port int, delayMillis int, out io.Writer) (func() error, error) 
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	shutdown := func() error {
+		signal.Stop(quit)
 		close(quit)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
