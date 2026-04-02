@@ -9,6 +9,10 @@
 - `just build` -- build the binary to ./ganda
 - `just install` -- install to GOPATH/bin
 - `just clean` -- remove build artifacts (use this, never bare rm -rf)
+- `just tidy` -- run go mod tidy
+- `just update-deps` -- update all dependencies
+- `just bench-go` -- run Go micro-benchmarks (parser, responses)
+- `just bench` -- run end-to-end throughput benchmark via hyperfine
 
 Red/green testing: write a failing test before implementing, then make it pass.
 All commits should pass `just check`.
@@ -39,4 +43,5 @@ Packages:
 ## Conventions
 
 - Tests use httptest.Server stubs and assert with stretchr/testify.
-- Packages without tests: config, execcontext, logger, requests.
+- All packages have test coverage.
+- JSON-line input supports up to 1MB per line (scanner buffer limit).

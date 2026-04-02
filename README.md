@@ -59,7 +59,7 @@ go install github.com/tednaleid/ganda@latest
 or, if you have this repo downloaded locally:
 
 ```bash
-make install
+just install
 ```
 
 to install in your `$GOPATH/bin` (which you want in your `$PATH`)
