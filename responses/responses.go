@@ -18,6 +18,8 @@ import (
 	"sync"
 )
 
+var specialCharactersRegexp = regexp.MustCompile("[^A-Za-z0-9]+")
+
 type ResponseWithContext struct {
 	Response       *http.Response
 	RequestContext interface{}
@@ -56,8 +58,6 @@ func responseSavingWorker(
 	context *execcontext.Context,
 	emitResponseWithContextFn emitResponseWithContextFn,
 ) {
-	specialCharactersRegexp := regexp.MustCompile("[^A-Za-z0-9]+")
-
 	responseWorker(responsesWithContext, func(responseWithContext *ResponseWithContext) {
 		response := responseWithContext.Response
 		filename := specialCharactersRegexp.ReplaceAllString(response.Request.URL.String(), "-")

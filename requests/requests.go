@@ -27,6 +27,9 @@ func NewHttpClient(context *execcontext.Context) *HttpClient {
 			Transport: &http.Transport{
 				MaxIdleConns:        500,
 				MaxIdleConnsPerHost: 50,
+				MaxConnsPerHost:     50,
+				IdleConnTimeout:     90 * time.Second,
+				ForceAttemptHTTP2:   true,
 				TLSClientConfig: &tls.Config{
 					InsecureSkipVerify: context.Insecure,
 				},

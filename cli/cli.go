@@ -238,8 +238,8 @@ func SetupCommand(
 // ProcessRequests wires up the request and response workers with channels
 // and asks the parser to start sending requests
 func ProcessRequests(context *execcontext.Context) {
-	requestsWithContextChannel := make(chan parser.RequestWithContext)
-	responsesWithContextChannel := make(chan *responses.ResponseWithContext)
+	requestsWithContextChannel := make(chan parser.RequestWithContext, context.RequestWorkers)
+	responsesWithContextChannel := make(chan *responses.ResponseWithContext, context.RequestWorkers)
 
 	var rateLimitTicker *time.Ticker
 
