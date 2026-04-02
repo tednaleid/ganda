@@ -169,11 +169,20 @@ func SetupCommand(
 						Usage: "Number of milliseconds to delay responding",
 						Value: 0, // Default delay is 0 milliseconds
 					},
+					&cli.BoolFlag{
+						Name:    "silent",
+						Aliases: []string{"s"},
+						Usage:   "suppress request logging output",
+					},
 				},
 				Action: func(ctx ctx.Context, cmd *cli.Command) error {
 					port := cmd.Int("port")
 					delayMillis := cmd.Int("delay-millis")
-					shutdown, err := echoserver.Echoserver(port, delayMillis, io.Writer(os.Stdout))
+					var echoOut io.Writer = os.Stdout
+					if cmd.Bool("silent") {
+						echoOut = io.Discard
+					}
+					shutdown, err := echoserver.Echoserver(port, delayMillis, echoOut)
 					if err != nil {
 						fmt.Println("Error starting server:", err)
 						os.Exit(1)
