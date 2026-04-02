@@ -49,17 +49,17 @@ update-deps:
 bench-go *ARGS:
     go test -bench=. -benchtime=3s -count=5 -benchmem -run=^$ ./... {{ARGS}}
 
-# run end-to-end throughput benchmark using hyperfine and the echoserver.
+# run end-to-end throughput benchmark using hyperfine and a minimal HTTP server.
 # Usage: just bench [urls] [workers]  (default: 100000 urls, 50 workers)
 bench urls="100000" workers="50":
     #!/usr/bin/env bash
     set -euo pipefail
     just build
     port=9876
-    ./ganda echoserver --port "$port" -s &
+    # start a minimal stdlib HTTP server (no framework, no allocation per request)
+    go run bench/server.go "$port" &
     server_pid=$!
     trap 'kill "$server_pid" 2>/dev/null || true' EXIT
-    # wait for server to be ready
     for i in $(seq 1 50); do
         if nc -z localhost "$port" 2>/dev/null; then break; fi
         sleep 0.1
@@ -71,7 +71,6 @@ bench urls="100000" workers="50":
         --warmup 3 \
         --runs 10 \
         "seq 1 ${url_count} | sed 's|.*|http://localhost:${port}/&|' | ./ganda -W ${worker_count} -s --response-body discard"
-    kill "$server_pid" 2>/dev/null || true
 
 # clean build artifacts
 clean:
