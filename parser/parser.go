@@ -102,6 +102,7 @@ func SendJsonLinesRequests(
 	staticHeaders []config.RequestHeader,
 ) error {
 	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, bufio.MaxScanTokenSize), 1024*1024) // 1MB max line size
 
 	for scanner.Scan() {
 		line := scanner.Text()

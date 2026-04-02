@@ -296,6 +296,40 @@ func TestSendJsonLinesPassesBody(t *testing.T) {
 	}
 }
 
+func TestEmptyInputReturnsNoError(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 1)
+	defer close(requestsWithContext)
+
+	err := parser.SendRequests(requestsWithContext, strings.NewReader(""), "GET", []config.RequestHeader{})
+
+	assert.Nil(t, err, "empty input should not return an error")
+	assert.Equal(t, 0, len(requestsWithContext), "no requests should be sent")
+}
+
+func TestMalformedUrlReturnsError(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 1)
+	defer close(requestsWithContext)
+
+	in := strings.NewReader("://bad-url\n")
+
+	err := parser.SendRequests(requestsWithContext, in, "GET", []config.RequestHeader{})
+
+	assert.NotNil(t, err, "malformed URL should return an error")
+	assert.Contains(t, err.Error(), "invalid request")
+}
+
+func TestMalformedJsonLineUrlReturnsError(t *testing.T) {
+	requestsWithContext := make(chan parser.RequestWithContext, 1)
+	defer close(requestsWithContext)
+
+	in := strings.NewReader(`{"url": "://bad-url"}` + "\n")
+
+	err := parser.SendRequests(requestsWithContext, in, "GET", []config.RequestHeader{})
+
+	assert.NotNil(t, err, "malformed URL in JSON line should return an error")
+	assert.Contains(t, err.Error(), "invalid request")
+}
+
 func trimmedInputReader(s string) io.Reader {
 	lines := strings.Split(s, "\n")
 	var trimmedLines []string
