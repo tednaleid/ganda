@@ -30,7 +30,7 @@ func TestEchoserverDefaultPort(t *testing.T) {
 }
 
 func TestEchoserverOverridePort(t *testing.T) {
-	port := 9090
+	port := getAvailablePort(t)
 	shutdownFunc := RunGandaAsync([]string{"ganda", "echoserver", "--port", strconv.Itoa(port)}, nil)
 
 	// asserts that the port is open
@@ -47,7 +47,7 @@ func TestEchoserverOverridePort(t *testing.T) {
 
 // Runs the Echoserver and then runs ganda against it
 func TestAllTogetherNow(t *testing.T) {
-	port := 9090
+	port := getAvailablePort(t)
 	shutdownFunc := RunGandaAsync([]string{"ganda", "echoserver", "--port", strconv.Itoa(port)}, nil)
 
 	waitForPort(port)
@@ -93,6 +93,16 @@ func RunGandaAsync(args []string, in io.Reader) func() GandaResults {
 		result := <-resultsChan
 		return result
 	}
+}
+
+func getAvailablePort(t *testing.T) int {
+	l, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+	return port
 }
 
 // func to check if an int port argument is open in a spin loop and will return when it is
