@@ -44,8 +44,12 @@ One currently has 3 options:
 
 1\. On MacOS you can install using [homebrew](https://brew.sh/)
 ```bash
-brew tap tednaleid/homebrew-ganda
-brew install ganda
+brew install tednaleid/ganda/ganda
+```
+
+to upgrade to the latest version:
+```bash
+brew update && brew upgrade ganda
 ```
 
 2\. Download the appropriate binary from the [releases page]((https://github.com/tednaleid/ganda/releases) and put it in your path
