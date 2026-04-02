@@ -34,7 +34,12 @@ func SendRequests(
 	staticHeaders []config.RequestHeader,
 ) error {
 	reader := bufio.NewReader(in)
-	inputType, _ := determineInputType(reader)
+	inputType, err := determineInputType(reader)
+	if err == io.EOF {
+		return nil // empty input, nothing to do
+	} else if err != nil {
+		return err
+	}
 
 	if inputType == JsonLines {
 		return SendJsonLinesRequests(requestsWithContext, reader, requestMethod, staticHeaders)
@@ -65,7 +70,10 @@ func SendUrlsRequests(
 
 		if len(record) > 0 {
 			url := record[0]
-			request := createRequest(url, nil, requestMethod, staticHeaders)
+			request, err := createRequest(url, nil, requestMethod, staticHeaders)
+			if err != nil {
+				return fmt.Errorf("invalid request for %s: %w", url, err)
+			}
 			recordContext := record[1:]
 
 			if len(recordContext) == 0 {
@@ -119,7 +127,10 @@ func SendJsonLinesRequests(
 
 		mergedHeaders := mergeHeaders(staticHeaders, jsonLine.Headers)
 
-		request := createRequest(jsonLine.URL, body, method, mergedHeaders)
+		request, err := createRequest(jsonLine.URL, body, method, mergedHeaders)
+		if err != nil {
+			return fmt.Errorf("invalid request for %s: %w", jsonLine.URL, err)
+		}
 		requestsWithContext <- RequestWithContext{Request: request, RequestContext: jsonLine.Context}
 	}
 
@@ -194,11 +205,11 @@ func determineInputType(bufferedReader *bufio.Reader) (InputType, error) {
 	return Urls, nil
 }
 
-func createRequest(url string, body io.Reader, requestMethod string, requestHeaders []config.RequestHeader) *http.Request {
+func createRequest(url string, body io.Reader, requestMethod string, requestHeaders []config.RequestHeader) (*http.Request, error) {
 	request, err := http.NewRequest(requestMethod, url, body)
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	request.Header.Add("connection", "keep-alive")
@@ -207,5 +218,5 @@ func createRequest(url string, body io.Reader, requestMethod string, requestHead
 		request.Header.Add(header.Key, header.Value)
 	}
 
-	return request
+	return request, nil
 }

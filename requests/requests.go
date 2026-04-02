@@ -69,7 +69,9 @@ func requestWorker(
 
 		finalResponse, err := requestWithRetry(httpClient, requestWithContext, context.BaseRetryDelayDuration)
 
-		if err == nil {
+		if err != nil {
+			httpClient.Logger.LogError(err, requestWithContext.Request.URL.String())
+		} else {
 			responsesWithContext <- finalResponse
 		}
 	}
@@ -109,7 +111,11 @@ func requestWithRetry(
 			return responseWithContext, fmt.Errorf("maximum number of retries (%d) reached for request", httpClient.MaxRetries)
 		}
 
-		time.Sleep(baseRetryDelay * time.Duration(1<<attempts))
+		delay := baseRetryDelay * time.Duration(1<<attempts)
+		if delay > 30*time.Second {
+			delay = 30 * time.Second
+		}
+		time.Sleep(delay)
 	}
 
 }

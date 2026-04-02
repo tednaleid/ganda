@@ -43,7 +43,8 @@ func TestTimeout(t *testing.T) {
 	runResults.assert(
 		t,
 		"",
-		url+" Error: Get \""+url+"\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n",
+		url+" Error: Get \""+url+"\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)\n"+
+			url+" Error: maximum number of retries (0) reached for request\n",
 	)
 }
 
@@ -89,7 +90,8 @@ func TestRunningOutOfRetriesShouldStopProcessing(t *testing.T) {
 	runResults.assert(
 		t,
 		"",
-		"Response: 500 "+url+"\nResponse: 500 "+url+"\nResponse: 500 "+url+"\n",
+		"Response: 500 "+url+"\nResponse: 500 "+url+"\nResponse: 500 "+url+"\n"+
+			url+" Error: maximum number of retries (2) reached for request\n",
 	)
 }
 

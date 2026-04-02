@@ -61,10 +61,14 @@ func responseSavingWorker(
 	responseWorker(responsesWithContext, func(responseWithContext *ResponseWithContext) {
 		response := responseWithContext.Response
 		filename := specialCharactersRegexp.ReplaceAllString(response.Request.URL.String(), "-")
-		writeableFile := createWritableFile(context.BaseDirectory, context.SubdirLength, filename)
+		writeableFile, err := createWritableFile(context.BaseDirectory, context.SubdirLength, filename)
+		if err != nil {
+			context.Logger.LogError(err, response.Request.URL.String())
+			return
+		}
 		defer writeableFile.WriteCloser.Close()
 
-		_, err := emitResponseWithContextFn(responseWithContext, writeableFile.WriteCloser)
+		_, err = emitResponseWithContextFn(responseWithContext, writeableFile.WriteCloser)
 
 		if err != nil {
 			context.Logger.LogError(err, response.Request.URL.String()+" -> "+writeableFile.FullPath)
@@ -306,16 +310,16 @@ type WritableFile struct {
 	WriteCloser io.WriteCloser
 }
 
-func createWritableFile(baseDirectory string, subdirLength int, filename string) *WritableFile {
+func createWritableFile(baseDirectory string, subdirLength int, filename string) (*WritableFile, error) {
 	directory := directoryForFile(baseDirectory, filename, subdirLength)
 	fullPath := directory + filename
 
 	file, err := os.Create(fullPath)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to create file %s: %w", fullPath, err)
 	}
 
-	return &WritableFile{FullPath: fullPath, WriteCloser: file}
+	return &WritableFile{FullPath: fullPath, WriteCloser: file}, nil
 }
 
 func directoryForFile(baseDirectory string, filename string, subdirLength int) string {
