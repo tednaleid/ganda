@@ -6,7 +6,7 @@ import (
 )
 import "github.com/urfave/cli/v3"
 
-// the urfave/cli package only supports int64 flags, we only want realistic (>0, not too big) values
+// WorkerFlag validates that worker count is between 1 and 2^20
 type WorkerFlag = cli.FlagBase[int, cli.IntegerConfig, intValue]
 
 type intValue struct {

@@ -196,7 +196,7 @@ func SetupCommand(
 				},
 			},
 		},
-		Before: func(_ ctx.Context, cmd *cli.Command) error {
+		Before: func(c ctx.Context, cmd *cli.Command) (ctx.Context, error) {
 			var err error
 
 			if cmd.Args().Present() && cmd.Args().First() != "help" &&
@@ -207,14 +207,14 @@ func SetupCommand(
 			conf.RequestHeaders, err = config.ConvertRequestHeaders(cmd.StringSlice("header"))
 
 			if err != nil {
-				return err
+				return c, err
 			}
 
 			// convert the conf into a context that has resolved/converted values that we want to
 			// use when processing.  Store in metadata so we can access it in the action
 			cmd.Metadata["context"], err = execcontext.New(conf, in, stderr, stdout)
 
-			return err
+			return c, err
 		},
 		Action: func(_ ctx.Context, cmd *cli.Command) error {
 			context := cmd.Metadata["context"].(*execcontext.Context)

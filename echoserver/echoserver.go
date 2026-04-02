@@ -28,7 +28,7 @@ type RequestEcho struct {
 	RequestBody string            `json:"request_body"`
 }
 
-func Echoserver(port int64, delayMillis int64, out io.Writer) (func() error, error) {
+func Echoserver(port int, delayMillis int, out io.Writer) (func() error, error) {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true

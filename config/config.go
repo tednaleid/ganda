@@ -8,9 +8,9 @@ import (
 
 type Config struct {
 	BaseDirectory        string
-	BaseRetryDelayMillis int64
+	BaseRetryDelayMillis int
 	Color                bool
-	ConnectTimeoutMillis int64
+	ConnectTimeoutMillis int
 	Insecure             bool
 	JsonEnvelope         bool
 	RequestFilename      string
@@ -19,10 +19,10 @@ type Config struct {
 	RequestWorkers       int
 	ResponseWorkers      int
 	ResponseBody         ResponseBodyType
-	Retries              int64
+	Retries              int
 	Silent               bool
-	SubdirLength         int64
-	ThrottlePerSecond    int64
+	SubdirLength         int
+	ThrottlePerSecond    int
 }
 
 func New() *Config {

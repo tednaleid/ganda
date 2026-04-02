@@ -25,9 +25,9 @@ type Context struct {
 	RequestWorkers         int
 	ResponseBody           config.ResponseBodyType
 	ResponseWorkers        int
-	Retries                int64
-	SubdirLength           int64
-	ThrottlePerSecond      int64
+	Retries                int
+	SubdirLength           int
+	ThrottlePerSecond      int
 	WriteFiles             bool
 }
 

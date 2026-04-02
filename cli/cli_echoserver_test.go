@@ -1,12 +1,12 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/tednaleid/ganda/echoserver"
 	"github.com/urfave/cli/v3"
-	"golang.org/x/net/context"
 	"io"
 	"net"
 	"strconv"
@@ -26,7 +26,7 @@ func TestEchoserverDefaultPort(t *testing.T) {
 	subcommand := FindSubcommand(results.command, "echoserver")
 	assert.NotNil(t, subcommand)
 	assert.Equal(t, subcommand.Name, "echoserver")
-	assert.Equal(t, subcommand.Int("port"), int64(8080))
+	assert.Equal(t, subcommand.Int("port"), 8080)
 }
 
 func TestEchoserverOverridePort(t *testing.T) {
@@ -42,7 +42,7 @@ func TestEchoserverOverridePort(t *testing.T) {
 	subcommand := FindSubcommand(results.command, "echoserver")
 	assert.NotNil(t, subcommand)
 	assert.Equal(t, subcommand.Name, "echoserver")
-	assert.Equal(t, subcommand.Int("port"), int64(port))
+	assert.Equal(t, subcommand.Int("port"), port)
 }
 
 // Runs the Echoserver and then runs ganda against it

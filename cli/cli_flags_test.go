@@ -33,11 +33,11 @@ func TestWorkers(t *testing.T) {
 func TestRetries(t *testing.T) {
 	results, _ := ParseGandaArgs([]string{"ganda"})
 	assert.NotNil(t, results)
-	assert.Equal(t, int64(0), results.GetContext().Retries)
+	assert.Equal(t, 0, results.GetContext().Retries)
 
 	separateResults, _ := ParseGandaArgs([]string{"ganda", "--retry", "5"})
 	assert.NotNil(t, separateResults)
-	assert.Equal(t, int64(5), separateResults.GetContext().Retries)
+	assert.Equal(t, 5, separateResults.GetContext().Retries)
 }
 
 func TestInvalidWorkers(t *testing.T) {

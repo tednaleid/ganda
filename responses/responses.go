@@ -306,7 +306,7 @@ type WritableFile struct {
 	WriteCloser io.WriteCloser
 }
 
-func createWritableFile(baseDirectory string, subdirLength int64, filename string) *WritableFile {
+func createWritableFile(baseDirectory string, subdirLength int, filename string) *WritableFile {
 	directory := directoryForFile(baseDirectory, filename, subdirLength)
 	fullPath := directory + filename
 
@@ -318,7 +318,7 @@ func createWritableFile(baseDirectory string, subdirLength int64, filename strin
 	return &WritableFile{FullPath: fullPath, WriteCloser: file}
 }
 
-func directoryForFile(baseDirectory string, filename string, subdirLength int64) string {
+func directoryForFile(baseDirectory string, filename string, subdirLength int) string {
 	var directory string
 	if subdirLength <= 0 {
 		directory = fmt.Sprintf("%s/", baseDirectory)

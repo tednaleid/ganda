@@ -13,7 +13,7 @@ import (
 )
 
 type HttpClient struct {
-	MaxRetries int64
+	MaxRetries int
 	Client     *http.Client
 	Logger     *logger.LeveledLogger
 }
@@ -83,7 +83,7 @@ func requestWithRetry(
 	var response *http.Response
 	var err error
 
-	for attempts := int64(1); ; attempts++ {
+	for attempts := 1; ; attempts++ {
 		response, err = httpClient.Client.Do(requestWithContext.Request)
 
 		responseWithContext := &responses.ResponseWithContext{
@@ -109,7 +109,7 @@ func requestWithRetry(
 			return responseWithContext, fmt.Errorf("maximum number of retries (%d) reached for request", httpClient.MaxRetries)
 		}
 
-		time.Sleep(baseRetryDelay * time.Duration(1<<uint(attempts)))
+		time.Sleep(baseRetryDelay * time.Duration(1<<attempts))
 	}
 
 }

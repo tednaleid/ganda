@@ -31,7 +31,7 @@ func withEchoserver(t *testing.T, test func(port int)) {
 		t.Fatal(err)
 	}
 
-	shutdown, err := Echoserver(int64(port), int64(delayMillis), io.Discard)
+	shutdown, err := Echoserver(port, delayMillis, io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}

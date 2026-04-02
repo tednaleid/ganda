@@ -36,6 +36,15 @@ build:
 install:
     go install
 
+# tidy go.mod and go.sum
+tidy:
+    go mod tidy
+
+# update all dependencies
+update-deps:
+    go get -u ./...
+    go mod tidy
+
 # clean build artifacts
 clean:
     go clean
