@@ -17,5 +17,7 @@ jobs:
         with:
           go-version-file: go.mod
       - uses: golangci/golangci-lint-action@v7
-      - uses: extractions/setup-just@v3
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
       - run: just check
