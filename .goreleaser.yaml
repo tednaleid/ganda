@@ -51,6 +51,30 @@ changelog:
       - "^docs:"
       - "^test:"
 
+nfpms:
+  - package_name: ganda
+    homepage: "https://github.com/tednaleid/ganda"
+    description: "fast cmd-line app that quickly requests millions of urls and saves/echoes the results"
+    maintainer: "Ted Naleid <contact@naleid.com>"
+    license: "Apache-2.0"
+    formats:
+      - deb
+      - rpm
+
+aurs:
+  - name: ganda-bin
+    homepage: "https://github.com/tednaleid/ganda"
+    description: "fast cmd-line app that quickly requests millions of urls and saves/echoes the results"
+    maintainers:
+      - "Ted Naleid <contact@naleid.com>"
+    license: "Apache-2.0"
+    private_key: "{{ .Env.AUR_SSH_KEY }}"
+    git_url: "ssh://aur@aur.archlinux.org/ganda-bin.git"
+    depends:
+      - glibc
+    package: |-
+      install -Dm755 ganda "${pkgdir}/usr/bin/ganda"
+
 brews:
   - name: ganda
     homepage: "https://github.com/tednaleid/ganda"

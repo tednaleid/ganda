@@ -40,27 +40,53 @@ and don't have the same flexibility in how the response is handled.
 
 # Installation
 
-One currently has 3 options:
+### Homebrew (macOS/Linux)
 
-1\. On MacOS you can install using [homebrew](https://brew.sh/)
 ```bash
 brew install tednaleid/ganda/ganda
 ```
 
-to upgrade to the latest version:
+To upgrade to the latest version:
 ```bash
 brew update && brew upgrade ganda
 ```
 
-2\. Download the appropriate binary from the [releases page]((https://github.com/tednaleid/ganda/releases) and put it in your path
+### Arch Linux (AUR)
 
-3\. Compile from source with golang:
+```bash
+yay -S ganda-bin
+```
+
+Or with `paru`:
+```bash
+paru -S ganda-bin
+```
+
+### Debian/Ubuntu (.deb)
+
+Download the `.deb` file from the [releases page](https://github.com/tednaleid/ganda/releases) and install:
+```bash
+sudo dpkg -i ganda_<version>_linux_amd64.deb
+```
+
+### Fedora/RHEL (.rpm)
+
+Download the `.rpm` file from the [releases page](https://github.com/tednaleid/ganda/releases) and install:
+```bash
+sudo rpm -i ganda_<version>_linux_amd64.rpm
+```
+
+### Binary download
+
+Download the appropriate binary from the [releases page](https://github.com/tednaleid/ganda/releases) and put it in your path.
+
+### From source
 
 ```bash
 go install github.com/tednaleid/ganda@latest
 ```
 
-or, if you have this repo downloaded locally:
+Or, if you have this repo downloaded locally:
 
 ```bash
 just install
