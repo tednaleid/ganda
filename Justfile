@@ -78,12 +78,19 @@ clean:
     rm -f ganda ganda-amd64
 
 # bump version, create annotated tag with release notes, and push to trigger release.
-# Usage: just bump 1.0.4
-bump version:
+# Usage: just bump [version]  (default: patch bump from latest tag)
+bump version="":
     #!/usr/bin/env bash
     set -euo pipefail
-    test -n "{{version}}" || { echo "Usage: just bump 1.0.4"; exit 1; }
-    tag="v{{version}}"
+    if [ -n "{{version}}" ]; then
+        ver="{{version}}"
+    else
+        prev=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        # strip v prefix, split on dots, increment patch
+        IFS='.' read -r major minor patch <<< "${prev#v}"
+        ver="${major}.${minor}.$((patch + 1))"
+    fi
+    tag="v${ver}"
     # Generate release notes from commits since last tag
     prev_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
     if [ -n "$prev_tag" ]; then
@@ -94,7 +101,7 @@ bump version:
     notes_file=$(mktemp)
     trap 'rm -f "$notes_file"' EXIT
     if command -v claude >/dev/null 2>&1; then
-        claude -p "Generate concise release notes for version {{version}}. Commits:\n$log\n\nGuidelines: group related commits, focus on user-facing changes, skip version bumps and CI changes, one line per bullet, past tense, output only a bullet list." > "$notes_file" 2>/dev/null || echo "$log" | sed 's/^[0-9a-f]* /- /' > "$notes_file"
+        claude -p "Generate concise release notes for version ${ver}. Commits:\n$log\n\nGuidelines: group related commits, focus on user-facing changes, skip version bumps and CI changes, one line per bullet, past tense, output only a bullet list." > "$notes_file" 2>/dev/null || echo "$log" | sed 's/^[0-9a-f]* /- /' > "$notes_file"
     else
         echo "$log" | sed 's/^[0-9a-f]* /- /' > "$notes_file"
     fi
@@ -102,7 +109,7 @@ bump version:
     cat "$notes_file"
     git tag -a "$tag" -F "$notes_file"
     git push && git push --tags
-    echo "$tag released!"
+    echo "${tag} released!"
 
 # delete a GitHub release and re-tag to re-trigger release workflow.
 # Preserves the annotated tag message (release notes).
