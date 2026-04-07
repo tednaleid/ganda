@@ -45,14 +45,22 @@ engine. Prefer it over reasoning about matchers in your head.
 
 ## The two actions
 
+**reject** (preferred default) -- block with exit 2 and a stderr message.
+The message is sent to the agent, which can then choose a different
+approach. Use for unsafe commands, policy violations, and Justfile
+redirects where the matched command has multiple subcommands or uses.
+
 **rewrite** -- silently swap the command for an alternative. The agent
 doesn't see the original command run; the hook produces JSON on stdout that
-Claude Code applies before execution. Use when the replacement is always
-correct (e.g., `pytest` -> `just test` in a repo with a Justfile).
+Claude Code applies before execution. Only use when the match uniquely
+identifies a single operation AND the replacement is always correct (e.g.,
+`pytest` is always test-running, so rewriting to `just test` is safe).
 
-**reject** -- block with exit 2 and a stderr message. The message is sent
-to the agent, which can then choose a different approach. Use when the
-command is unsafe, policy-violating, or there's no universal alternative.
+**When in doubt, use reject.** Multi-purpose tools like `npm`, `bun`,
+`yarn`, `cargo`, `zig`, `go`, `python`, and `make` have many subcommands.
+A `command = "bun"` rewrite to `just install` would incorrectly catch
+`bun test`, `bun run dev`, etc. Reject lets the agent see the message and
+pick the right `just` target itself.
 
 A rule with `rewrite_to` implies rewrite; otherwise it's reject.
 
@@ -62,9 +70,8 @@ A rule with `rewrite_to` implies rewrite; otherwise it's reject.
 [[rule]]
 id = "use-just-test"                     # required, unique identifier
 name = "Redirect pytest to just test"    # optional human name
-action = "rewrite"                       # explicit; inferred if omitted
-rewrite_to = "just test"                 # required for rewrite
-message = "Use just test."               # required for reject; shown to agent
+action = "reject"                        # explicit; inferred if omitted
+message = "Use 'just test' instead."     # required for reject; shown to agent
 tool = "Bash"                            # which Claude Code tool (default: Bash)
 enabled = true                           # default: true
 [rule.match]
@@ -98,12 +105,18 @@ parsed AST.
 
 This is the most common use case. If the repo has a Justfile (or
 package.json scripts, or Makefile targets), the user probably wants the
-agent to use those entry points rather than the underlying tools. Common
-redirects to suggest:
+agent to use those entry points rather than the underlying tools.
+
+**Default to reject** for these rules. The reject message tells the agent
+which `just` target to use. Only use rewrite for single-purpose commands
+where `command = "tool"` uniquely identifies the operation (e.g., `pytest`,
+`eslint`, `ruff check`). For multi-purpose tools (`npm`, `bun`, `cargo`,
+`zig`, `go`), always use reject -- a single rewrite target cannot cover
+all subcommands.
 
 | Underlying tool | Wrapper | Rule sketch |
 |---|---|---|
-| `pytest` | `just test` | `action="rewrite", match.command="pytest", rewrite_to="just test"` |
+| `pytest` | `just test` | `action="reject", match.command="pytest", message="Use 'just test'."` |
 | `npm test` / `pnpm test` / `yarn test` | `just test` | same shape |
 | `cargo test` | `just test` | same shape |
 | `python3 -m pytest` | `just test` | use `raw_regex` or `command_all` |
@@ -144,10 +157,9 @@ Two paths, both edit `.veer/config.toml`:
 ```
 veer add \
   --id use-just-test \
-  --action rewrite \
+  --action reject \
   --command pytest \
-  --rewrite-to "just test" \
-  --message "Use just test."
+  --message "Use 'just test' instead of invoking pytest directly."
 ```
 
 **Direct TOML edit** (good when you need non-trivial match patterns):
