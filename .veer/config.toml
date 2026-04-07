@@ -1,0 +1,99 @@
+# veer rules - evaluated in order, first match wins.
+# Run 'veer list' to see active rules, 'veer test "<cmd>"' to preview behavior.
+# See .claude/skills/veer/SKILL.md for a guide on adding rules.
+
+[[rule]]
+id = "use-just-bench-go"
+name = "Redirect go test -bench to just bench-go"
+action = "reject"
+message = "Use `just bench-go` for micro-benchmarks or `just bench` for end-to-end throughput."
+[rule.match]
+raw_regex = "^go test.*-bench"
+
+[[rule]]
+id = "use-just-test"
+name = "Redirect go test to just test"
+action = "reject"
+message = "Use `just test` instead. Pass extra args like: `just test -v -run TestFoo`."
+[rule.match]
+command = "go"
+arg = "test"
+
+[[rule]]
+id = "use-just-lint"
+name = "Redirect golangci-lint to just lint"
+action = "reject"
+message = "Use `just lint` instead."
+[rule.match]
+command = "golangci-lint"
+
+[[rule]]
+id = "use-just-fmt"
+name = "Redirect gofmt to just fmt"
+action = "reject"
+message = "Use `just fmt` to format or `just fmt-check` to verify formatting."
+[rule.match]
+command = "gofmt"
+
+[[rule]]
+id = "use-just-build"
+name = "Redirect go build to just build"
+action = "reject"
+message = "Use `just build` instead (sets output to ./ganda)."
+[rule.match]
+command = "go"
+arg = "build"
+
+[[rule]]
+id = "use-just-install"
+name = "Redirect go install to just install"
+action = "reject"
+message = "Use `just install` instead."
+[rule.match]
+command = "go"
+arg = "install"
+
+[[rule]]
+id = "use-just-tidy"
+name = "Redirect go mod tidy to just tidy"
+action = "reject"
+message = "Use `just tidy` instead."
+[rule.match]
+command = "go"
+arg_all = ["mod", "tidy"]
+
+[[rule]]
+id = "use-just-update-deps"
+name = "Redirect go get -u to just update-deps"
+action = "reject"
+message = "Use `just update-deps` which also runs `go mod tidy` afterward."
+[rule.match]
+command = "go"
+arg = "get"
+flag = "u"
+
+[[rule]]
+id = "use-just-clean"
+name = "Redirect go clean to just clean"
+action = "reject"
+message = "Use `just clean` instead (also removes ganda and ganda-amd64 binaries)."
+[rule.match]
+command = "go"
+arg = "clean"
+
+[[rule]]
+id = "no-rm-build-artifacts"
+name = "Block manual cleanup of build artifacts"
+action = "reject"
+message = "Use `just clean` to remove build artifacts."
+[rule.match]
+command = "rm"
+arg_any = ["ganda", "ganda-amd64"]
+
+[[rule]]
+id = "no-curl-pipe-shell"
+name = "Block curl piped to a shell"
+action = "reject"
+message = "Don't pipe curl to bash/sh -- download, inspect, then execute."
+[rule.match]
+command_all = ["curl", "bash"]
