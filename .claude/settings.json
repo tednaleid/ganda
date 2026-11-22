@@ -6,7 +6,28 @@
         "hooks": [
           {
             "type": "command",
-            "command": "veer check"
+            "command": "command -v veer >/dev/null 2>&1 || exit 0; veer check # veer-hook"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v veer >/dev/null 2>&1 || exit 0; veer check # veer-hook"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v veer >/dev/null 2>&1 || [ -e \"${CLAUDE_PROJECT_DIR:-.}/.veer/no-notice\" ] || echo '{\"systemMessage\":\"veer is not installed, so the Claude Code rules in .veer/config.toml are not enforced. veer steers Claude Code toward project-specific tooling. Install: brew install tednaleid/veer/veer (https://github.com/tednaleid/veer). To silence this notice: touch .veer/no-notice\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"veer is not installed, so the Claude Code rules in .veer/config.toml are not enforced. veer steers Claude Code toward project-specific tooling. Install: brew install tednaleid/veer/veer (https://github.com/tednaleid/veer). To silence this notice: touch .veer/no-notice\"}}' # veer-hook"
           }
         ]
       }
