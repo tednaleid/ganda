@@ -3,7 +3,7 @@ module github.com/tednaleid/ganda
 go 1.26.1
 
 require (
-	github.com/labstack/echo/v4 v4.16.5
+	github.com/labstack/echo/v4 v4.16.6
 	github.com/stretchr/testify v1.12.1
 	github.com/urfave/cli/v3 v3.14.0
 )
